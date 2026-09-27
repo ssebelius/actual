@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  // Typechecked with `tsgo -p`, not `tsgo -b`: build mode would also compile
+  // the ../api reference, which emits unbundled JS over the API's bundled
+  // dist/index.js, the file the seed script runs against. The reference is
+  // still needed so the API's types come from its declaration files.
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["vitest/globals", "node"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
+  },
+  "references": [{ "path": "../api" }],
+  "include": ["src/**/*", "profiles/**/*"],
+  "exclude": ["node_modules", "output"]
+}
