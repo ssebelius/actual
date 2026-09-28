@@ -1,4 +1,10 @@
-import { filterByStartDate, parseCategoryFields, parseDate } from './utils';
+import {
+  filterByStartDate,
+  getInitialDateFormat,
+  getInitialMappings,
+  parseCategoryFields,
+  parseDate,
+} from './utils';
 import type { ImportTransaction } from './utils';
 
 describe('Import transactions', () => {
@@ -304,5 +310,82 @@ describe('Import transactions', () => {
         parseCategoryFields({ category: 'Missing category' }, categories),
       ).toBeNull();
     });
+  });
+});
+
+describe('column guessing', () => {
+  const chaseCardRow = {
+    'Transaction Date': '09/14/2026',
+    'Post Date': '09/15/2026',
+    Description: 'STARBUCKS STORE 03512',
+    Category: 'Food & Drink',
+    Type: 'Sale',
+    Amount: '-4.50',
+    Memo: '',
+  };
+
+  test('getInitialMappings guesses exactly as the dialog did', () => {
+    expect(getInitialMappings([])).toEqual({});
+    expect(getInitialMappings([chaseCardRow])).toEqual({
+      date: 'Transaction Date',
+      amount: 'Amount',
+      payee: 'Post Date',
+      notes: 'Description',
+      inOut: 'Category',
+      category: 'Category',
+    });
+  });
+
+  test("getInitialMappings ignores the dialog's preview fields", () => {
+    expect(
+      getInitialMappings([
+        {
+          trx_id: '0',
+          selected: true,
+          Date: '2026-09-14',
+          Payee: 'Starbucks',
+          Amount: '-4.50',
+          Notes: 'coffee',
+        },
+      ]),
+    ).toEqual({
+      date: 'Date',
+      amount: 'Amount',
+      payee: 'Payee',
+      notes: 'Notes',
+      inOut: null,
+      category: null,
+    });
+  });
+
+  test('getInitialMappings reads headerless rows by column index', () => {
+    // No column name matches, so date and amount are found by value;
+    // payee is the first column left, and nothing is left for notes.
+    expect(
+      getInitialMappings([['09/15/2026', 'Zelle to Jane', '-120.00']]),
+    ).toEqual({
+      date: '0',
+      amount: '2',
+      payee: '1',
+      notes: null,
+      inOut: null,
+      category: null,
+    });
+  });
+
+  test('getInitialDateFormat picks the first format that parses', () => {
+    expect(getInitialDateFormat([], { date: 'Date' })).toBe('yyyy mm dd');
+    expect(getInitialDateFormat([chaseCardRow], { date: null })).toBe(
+      'yyyy mm dd',
+    );
+    expect(
+      getInitialDateFormat([chaseCardRow], { date: 'Transaction Date' }),
+    ).toBe('mm dd yyyy');
+    expect(
+      getInitialDateFormat([{ Date: '2026-09-14' }], { date: 'Date' }),
+    ).toBe('yyyy mm dd');
+    expect(getInitialDateFormat([{ Date: 'soon' }], { date: 'Date' })).toBe(
+      'mm dd yyyy',
+    );
   });
 });

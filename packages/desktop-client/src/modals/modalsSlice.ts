@@ -24,6 +24,10 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 
 import { accountQueries } from '#accounts';
 import { resetApp, setAppState } from '#app/appSlice';
+import type {
+  CsvMapping,
+  CsvRawRow,
+} from '#components/bank-file-setup/csvRows';
 import type { SelectLinkedAccountsModalProps } from '#components/modals/SelectLinkedAccountsModal';
 import type { TransactionTableColumn } from '#components/transactions/table/columns';
 import { createAppAsyncThunk } from '#redux';
@@ -48,6 +52,17 @@ export type Modal =
         filename: string;
         categories?: { list: CategoryEntity[]; grouped: CategoryGroupEntity[] };
         onImported: (didChange: boolean) => void;
+      };
+    }
+  | {
+      name: 'bank-file-setup-csv-mapping';
+      options: {
+        fileName: string;
+        fileBytes: Uint8Array;
+        rawRows: CsvRawRow[];
+        initial: CsvMapping | null;
+        /** `rawRows` is the file as parsed with the mapping's header and skip options */
+        onDone: (mapping: CsvMapping, rawRows: CsvRawRow[]) => void;
       };
     }
   | {

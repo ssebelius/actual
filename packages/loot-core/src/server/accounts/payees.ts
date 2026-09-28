@@ -15,7 +15,11 @@ export async function createPayee(description: string) {
   }
 }
 
-export async function getStartingBalancePayee() {
+// The category a starting balance transaction gets: the income category
+// named "Starting Balances", else any income category
+export async function getStartingBalanceCategory(): Promise<
+  db.DbCategory['id'] | null
+> {
   let category = await db.first<db.DbCategory>(`
     SELECT * FROM categories
       WHERE is_income = 1 AND
@@ -27,10 +31,11 @@ export async function getStartingBalancePayee() {
       'SELECT * FROM categories WHERE is_income = 1 AND tombstone = 0',
     );
   }
+  return category ? category.id : null;
+}
 
+export async function getStartingBalancePayee() {
+  const category = await getStartingBalanceCategory();
   const id = await createPayee('Starting Balance');
-  return {
-    id,
-    category: category ? category.id : null,
-  };
+  return { id, category };
 }

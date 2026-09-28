@@ -2,6 +2,7 @@ import React, { useLayoutEffect } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Paragraph } from '@actual-app/components/paragraph';
 import { Text } from '@actual-app/components/text';
@@ -28,6 +29,7 @@ export function CreateAccountModal({
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { isNarrowWidth } = useResponsive();
   const { providers, syncServerStatus, permissionWarning } =
     useBuiltInBankSyncProviders({ upgradingAccountId });
 
@@ -117,6 +119,34 @@ export function CreateAccountModal({
                     </Text>
                   </View>
                 </View>
+
+                {!isNarrowWidth && (
+                  <View style={{ gap: 10 }}>
+                    <Button
+                      onPress={() => {
+                        state.close();
+                        void navigate('/setup', {
+                          state: { skipChoice: true },
+                        });
+                      }}
+                      style={{
+                        padding: '10px 0',
+                        fontSize: 15,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Trans>Set up from bank files</Trans>
+                    </Button>
+                    <Paragraph
+                      style={{ fontSize: 15, color: theme.pageTextSubdued }}
+                    >
+                      <Trans>
+                        Add your accounts and the files you downloaded from your
+                        banks. Nothing is created until you confirm.
+                      </Trans>
+                    </Paragraph>
+                  </View>
+                )}
 
                 <View style={{ gap: 10 }}>
                   <Button

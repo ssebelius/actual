@@ -4,6 +4,7 @@ export { Schedules } from '#components/schedules';
 export { Schedules as ScheduleEdit } from '#components/schedules';
 
 export { GoCardlessLink } from '#components/gocardless/GoCardlessLink';
+export { SetupPage } from '#components/bank-file-setup/SetupPage';
 
 export { Account as Accounts } from '#components/accounts/Account';
 export { Account } from '#components/accounts/Account';

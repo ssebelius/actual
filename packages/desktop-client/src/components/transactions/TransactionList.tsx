@@ -39,6 +39,7 @@ import { useDispatch } from '#redux';
 import { shouldApplyRuleChange } from './table/utils';
 import { TransactionTable } from './TransactionsTable';
 import type { TransactionTableProps } from './TransactionsTable';
+import { useCategoryOffer } from './useCategoryOffer';
 // When data changes, there are two ways to update the UI:
 //
 // * Optimistic updates: we apply the needed updates to local data
@@ -59,20 +60,32 @@ import type { TransactionTableProps } from './TransactionsTable';
 // differently than a full refresh. It's up to you to decide which
 // one to use when doing updates.
 
-async function saveDiff(diff, learnCategories) {
+async function saveDiff(diff, learnCategories, offerCategory = false) {
   const remoteUpdates = await send('transactions-batch-update', {
     ...diff,
     learnCategories,
+    offerCategory,
   });
+  const categoryOffer = remoteUpdates?.categoryOffer ?? null;
 
   if (remoteUpdates && remoteUpdates.updated.length > 0) {
-    return { updates: remoteUpdates };
+    return { updates: remoteUpdates, categoryOffer };
   }
-  return {};
+  return { categoryOffer };
 }
 
-async function saveDiffAndApply(diff, changes, onChange, learnCategories) {
-  const remoteDiff = await saveDiff(diff, learnCategories);
+async function saveDiffAndApply(
+  diff,
+  changes,
+  onChange,
+  learnCategories,
+  offerCategory = false,
+) {
+  const { categoryOffer, ...remoteDiff } = await saveDiff(
+    diff,
+    learnCategories,
+    offerCategory,
+  );
   onChange(
     // TODO:
     // @ts-expect-error - fix me
@@ -80,6 +93,7 @@ async function saveDiffAndApply(diff, changes, onChange, learnCategories) {
     // @ts-expect-error - fix me
     applyChanges(remoteDiff, changes.data),
   );
+  return categoryOffer;
 }
 
 type TransactionListProps = Pick<
@@ -180,6 +194,7 @@ export function TransactionList({
   const navigate = useNavigate();
   const [learnCategories = 'true'] = useSyncedPref('learn-categories');
   const isLearnCategoriesEnabled = String(learnCategories) === 'true';
+  const categoryOffer = useCategoryOffer({ onRefetch });
 
   const transactionsLatest = useRef<readonly TransactionEntity[]>([]);
   useLayoutEffect(() => {
@@ -198,6 +213,11 @@ export function TransactionList({
   const onSave = useCallback(
     async (transaction: TransactionEntity) => {
       const saveTransaction = async () => {
+        // Editing any transaction closes an open offer as unanswered
+        const saveSeq = categoryOffer.beginSave();
+        const previousCategoryId =
+          transactionsLatest.current.find(t => t.id === transaction.id)
+            ?.category ?? null;
         const changes = updateTransaction(
           transactionsLatest.current,
           transaction,
@@ -212,19 +232,31 @@ export function TransactionList({
             onRefetch();
           } else {
             onChange(changes.newTransaction, changes.data);
+            const updated = changes.diff.updated[0];
+            const isCategoryEdit =
+              changes.diff.updated.length === 1 &&
+              changes.diff.added.length === 0 &&
+              changes.diff.deleted.length === 0 &&
+              'category' in updated &&
+              Boolean(updated.category);
             void saveDiffAndApply(
               changes.diff,
               changes,
               onChange,
               isLearnCategoriesEnabled,
-            );
+              isCategoryEdit,
+            ).then(offer => {
+              if (offer) {
+                categoryOffer.show(offer, previousCategoryId, saveSeq);
+              }
+            });
           }
         }
       };
 
       await saveTransaction();
     },
-    [isLearnCategoriesEnabled, onChange, onRefetch],
+    [categoryOffer, isLearnCategoriesEnabled, onChange, onRefetch],
   );
 
   const onAddSplit = useCallback(
@@ -562,6 +594,15 @@ export function TransactionList({
         onMakeAsNonSplitTransactions={onMakeAsNonSplitTransactions}
         showSelection={showSelection}
         allowSplitTransaction={allowSplitTransaction}
+        categoryOffer={categoryOffer}
+        onViewRule={async ruleId => {
+          const rule = await send('rule-get', { id: ruleId });
+          if (rule) {
+            dispatch(
+              pushModal({ modal: { name: 'edit-rule', options: { rule } } }),
+            );
+          }
+        }}
       />
     </ErrorBoundary>
   );

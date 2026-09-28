@@ -12,6 +12,12 @@ import type {
   TransactionEntity,
 } from '#types/models';
 
+import {
+  applyCategoryOffer,
+  getCategoryOfferReviewRows,
+  learnFromCategoryEdit,
+  undoCategoryOffer,
+} from './category-offer';
 import { exportQueryToCSV, exportToCSV } from './export/export-to-csv';
 import { parseFile } from './import/parse-file';
 import type { ParseFileOptions } from './import/parse-file';
@@ -31,6 +37,10 @@ export type TransactionHandlers = {
   'transactions-merge': typeof mergeTransactions;
   'get-earliest-transaction': typeof getEarliestTransaction;
   'get-latest-transaction': typeof getLatestTransaction;
+  'category-offer-apply': typeof applyCategoryOffer;
+  'category-offer-undo': typeof undoCategoryOffer;
+  'category-offer-learn': typeof learnFromCategoryEdit;
+  'category-offer-review-rows': typeof getCategoryOfferReviewRows;
 };
 
 async function handleBatchUpdateTransactions({
@@ -38,6 +48,7 @@ async function handleBatchUpdateTransactions({
   deleted,
   updated,
   learnCategories,
+  offerCategory,
   runTransfers = true,
 }: Parameters<typeof batchUpdateTransactions>[0]) {
   const result = await batchUpdateTransactions({
@@ -45,6 +56,7 @@ async function handleBatchUpdateTransactions({
     updated,
     deleted,
     learnCategories,
+    offerCategory,
     runTransfers,
   });
 
@@ -157,6 +169,12 @@ app.method(
   mutator(undoable(handleBatchUpdateTransactions)),
 );
 app.method('transactions-merge', mutator(undoable(mergeTransactions)));
+app.method('category-offer-apply', mutator(undoable(applyCategoryOffer)));
+app.method('category-offer-undo', mutator(undoable(undoCategoryOffer)));
+// Not undoable: the deferred learn would otherwise become its own
+// invisible Cmd+Z step
+app.method('category-offer-learn', mutator(learnFromCategoryEdit));
+app.method('category-offer-review-rows', getCategoryOfferReviewRows);
 
 app.method('transaction-add', mutator(addTransaction));
 app.method('transaction-update', mutator(updateTransaction));

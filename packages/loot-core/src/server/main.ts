@@ -14,6 +14,7 @@ import { app as adminApp } from './admin/app';
 import { installAPI } from './api';
 import { aqlQuery } from './aql';
 import { app as authApp } from './auth/app';
+import { app as bankFileSetupApp } from './bank-file-setup/app';
 import { app as budgetApp } from './budget/app';
 import { app as budgetFilesApp } from './budgetfiles/app';
 import { app as dashboardApp } from './dashboard/app';
@@ -131,6 +132,7 @@ handlers = installAPI(handlers) as Handlers;
 app.handlers = handlers;
 app.combine(
   authApp,
+  bankFileSetupApp,
   schedulesApp,
   budgetApp,
   dashboardApp,

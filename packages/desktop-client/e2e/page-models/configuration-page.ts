@@ -2,6 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 
 import { BootstrapPage } from './bootstrap-page';
 import { BudgetPage } from './budget-page';
+import { SetupPage } from './setup-page';
 
 export class ConfigurationPage {
   readonly page: Page;
@@ -49,10 +50,21 @@ export class ConfigurationPage {
 
   async startFresh() {
     await this.page.getByRole('button', { name: 'Start budgeting' }).click();
+    await this.page
+      .getByRole('button', { name: /^Start with an empty budget/ })
+      .click();
 
     const budgetPage = new BudgetPage(this.page);
     await budgetPage.waitFor();
     return budgetPage;
+  }
+
+  async startWithBankFiles() {
+    await this.page.getByRole('button', { name: 'Start budgeting' }).click();
+
+    const setupPage = new SetupPage(this.page);
+    await setupPage.chooseSetUpFromBankFiles();
+    return setupPage;
   }
 
   async importBudget(type: 'YNAB4' | 'nYNAB' | 'Actual', file: string) {

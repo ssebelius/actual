@@ -12,12 +12,16 @@ import { stripCsvImportTransaction } from './utils';
 import type { FieldMapping, ImportTransaction } from './utils';
 
 type FieldMappingsProps = {
-  transactions: ImportTransaction[];
+  transactions: Array<Partial<ImportTransaction>>;
   mappings?: FieldMapping;
   onChange: (field: keyof FieldMapping, newValue: string) => void;
   splitMode: boolean;
   inOutMode: boolean;
   hasHeaderRow: boolean;
+  /** Offer a Balance column (bank file setup only) */
+  showBalance?: boolean;
+  /** The setup flow does not import categories */
+  showCategory?: boolean;
 };
 
 export function FieldMappings({
@@ -31,11 +35,14 @@ export function FieldMappings({
     category: null,
     outflow: null,
     inflow: null,
+    balance: null,
   },
   onChange,
   splitMode,
   inOutMode,
   hasHeaderRow,
+  showBalance = false,
+  showCategory = true,
 }: FieldMappingsProps) {
   const { t } = useTranslation();
   if (transactions.length === 0) {
@@ -44,101 +51,82 @@ export function FieldMappings({
 
   const trans = stripCsvImportTransaction(transactions[0]);
   const options = Object.keys(trans);
+  const shared = {
+    options,
+    mappings,
+    onChange,
+    hasHeaderRow,
+    firstTransaction: transactions[0],
+  };
 
   return (
     <View>
       <SectionLabel title={t('CSV FIELDS')} />
       <SpaceBetween gap={10} style={{ marginTop: 5, alignItems: 'flex-start' }}>
-        <View style={{ flex: 1 }}>
-          <SubLabel title={t('Date')} />
-          <SelectField
-            options={options}
-            value={mappings.date}
-            onChange={name => onChange('date', name)}
-            hasHeaderRow={hasHeaderRow}
-            firstTransaction={transactions[0]}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SubLabel title={t('Payee')} />
-          <SelectField
-            options={options}
-            value={mappings.payee}
-            onChange={name => onChange('payee', name)}
-            hasHeaderRow={hasHeaderRow}
-            firstTransaction={transactions[0]}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SubLabel title={t('Notes')} />
-          <SelectField
-            options={options}
-            value={mappings.notes}
-            onChange={name => onChange('notes', name)}
-            hasHeaderRow={hasHeaderRow}
-            firstTransaction={transactions[0]}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SubLabel title={t('Category')} />
-          <SelectField
-            options={options}
-            value={mappings.category}
-            onChange={name => onChange('category', name)}
-            hasHeaderRow={hasHeaderRow}
-            firstTransaction={transactions[0]}
-          />
-        </View>
+        <Picker {...shared} field="date" label={t('Date')} />
+        <Picker {...shared} field="payee" label={t('Payee')} />
+        <Picker {...shared} field="notes" label={t('Notes')} />
+        {showCategory && (
+          <Picker {...shared} field="category" label={t('Category')} />
+        )}
         {splitMode && !inOutMode ? (
           <>
-            <View style={{ flex: 0.5 }}>
-              <SubLabel title={t('Outflow')} />
-              <SelectField
-                options={options}
-                value={mappings.outflow}
-                onChange={name => onChange('outflow', name)}
-                hasHeaderRow={hasHeaderRow}
-                firstTransaction={transactions[0]}
-              />
-            </View>
-            <View style={{ flex: 0.5 }}>
-              <SubLabel title={t('Inflow')} />
-              <SelectField
-                options={options}
-                value={mappings.inflow}
-                onChange={name => onChange('inflow', name)}
-                hasHeaderRow={hasHeaderRow}
-                firstTransaction={transactions[0]}
-              />
-            </View>
+            <Picker
+              {...shared}
+              field="outflow"
+              label={t('Outflow')}
+              flex={0.5}
+            />
+            <Picker {...shared} field="inflow" label={t('Inflow')} flex={0.5} />
           </>
         ) : (
           <>
             {inOutMode && (
-              <View style={{ flex: 1 }}>
-                <SubLabel title={t('In/Out')} />
-                <SelectField
-                  options={options}
-                  value={mappings.inOut}
-                  onChange={name => onChange('inOut', name)}
-                  hasHeaderRow={hasHeaderRow}
-                  firstTransaction={transactions[0]}
-                />
-              </View>
+              <Picker {...shared} field="inOut" label={t('In/Out')} />
             )}
-            <View style={{ flex: 1 }}>
-              <SubLabel title={t('Amount')} />
-              <SelectField
-                options={options}
-                value={mappings.amount}
-                onChange={name => onChange('amount', name)}
-                hasHeaderRow={hasHeaderRow}
-                firstTransaction={transactions[0]}
-              />
-            </View>
+            <Picker {...shared} field="amount" label={t('Amount')} />
           </>
         )}
+        {showBalance && (
+          <Picker {...shared} field="balance" label={t('Balance')} />
+        )}
       </SpaceBetween>
+    </View>
+  );
+}
+
+type PickerProps = {
+  field: keyof FieldMapping;
+  label: string;
+  flex?: number;
+  options: string[];
+  mappings: FieldMapping;
+  onChange: (field: keyof FieldMapping, newValue: string) => void;
+  hasHeaderRow: boolean;
+  firstTransaction: Partial<ImportTransaction>;
+};
+
+function Picker({
+  field,
+  label,
+  flex = 1,
+  options,
+  mappings,
+  onChange,
+  hasHeaderRow,
+  firstTransaction,
+}: PickerProps) {
+  return (
+    <View style={{ flex }}>
+      <SubLabel title={label} />
+      <SelectField
+        aria-label={label}
+        options={options}
+        value={mappings[field] ?? null}
+        onChange={name => onChange(field, name)}
+        hasHeaderRow={hasHeaderRow}
+        firstTransaction={firstTransaction}
+      />
     </View>
   );
 }

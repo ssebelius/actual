@@ -1,0 +1,26 @@
+{
+  "name": "@actual-app/sample-data",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sample budgets and bank files for trying Actual",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "seed": "node src/cli.ts",
+    "test": "vitest --run",
+    "typecheck": "tsgo -p tsconfig.json"
+  },
+  "dependencies": {
+    "@actual-app/api": "workspace:*",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/prompts": "^2.4.9",
+    "@typescript/native-preview": "beta",
+    "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

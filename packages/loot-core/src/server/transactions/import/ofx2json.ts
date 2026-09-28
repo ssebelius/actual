@@ -3,7 +3,7 @@ import { parseStringPromise } from 'xml2js';
 
 import { dayFromDate } from '#shared/months';
 
-type OFXTransaction = {
+export type OFXTransaction = {
   amount: string;
   fitId: string;
   name: string;
@@ -12,10 +12,61 @@ type OFXTransaction = {
   type: string;
 };
 
+export type OFXStatement = {
+  kind: 'bank' | 'credit' | 'investment';
+  org: string | null; // SIGNONMSGSRSV1.SONRS.FI.ORG
+  fid: string | null; // SIGNONMSGSRSV1.SONRS.FI.FID
+  bankId: string | null; // BANKACCTFROM.BANKID
+  accountId: string | null; // BANKACCTFROM.ACCTID or CCACCTFROM.ACCTID
+  accountType: string | null; // BANKACCTFROM.ACCTTYPE, e.g. 'CHECKING'
+  start: string | null; // BANKTRANLIST.DTSTART as YYYY-MM-DD
+  end: string | null; // BANKTRANLIST.DTEND as YYYY-MM-DD
+  ledgerBalance: number | null; // LEDGERBAL.BALAMT, decimal
+  ledgerDate: string | null; // LEDGERBAL.DTASOF as YYYY-MM-DD
+  transactions: OFXTransaction[];
+};
+
 type OFXParseResult = {
   headers: Record<string, unknown>;
   transactions: OFXTransaction[];
+  statements: OFXStatement[];
 };
+
+/**
+ * Parse OFX amount strings to numbers.
+ * Handles various OFX amount formats including currency symbols, parentheses, and multiple decimal places.
+ * Returns null for invalid amounts instead of NaN.
+ */
+export function parseOfxAmount(amount: string): number | null {
+  if (!amount || typeof amount !== 'string') {
+    return null;
+  }
+
+  // Handle parentheses for negative amounts (e.g., "(30.00)" -> "-30.00")
+  let cleaned = amount.trim();
+  if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
+    cleaned = '-' + cleaned.slice(1, -1);
+  }
+
+  // Remove currency symbols and other non-numeric characters except decimal point and minus sign
+  cleaned = cleaned.replace(/[^\d.-]/g, '');
+
+  // Handle multiple decimal points by keeping only the first one
+  const decimalIndex = cleaned.indexOf('.');
+  if (decimalIndex !== -1) {
+    const beforeDecimal = cleaned.slice(0, decimalIndex);
+    const afterDecimal = cleaned.slice(decimalIndex + 1).replace(/\./g, '');
+    cleaned = beforeDecimal + '.' + afterDecimal;
+  }
+
+  // Ensure we have a valid number format
+  if (!cleaned || cleaned === '-' || cleaned === '.') {
+    return null;
+  }
+
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? null : parsed;
+}
 
 function sgml2Xml(sgml) {
   return sgml
@@ -96,6 +147,100 @@ function getInvStmtTrn(ofx) {
     return getAsArray(stmtTrn);
   });
   return result;
+}
+
+// Every statement in every message set, in the order bank, credit card,
+// investment. Unlike getStmtTrn, a file with both bank and card
+// statements keeps both.
+function getStatements(data): OFXStatement[] {
+  const ofx = data?.['OFX'];
+  const fi = ofx?.['SIGNONMSGSRSV1']?.['SONRS']?.['FI'];
+  const org = ofxText(fi?.['ORG']);
+  const fid = ofxText(fi?.['FID']);
+
+  const bank = getAsArray(ofx?.['BANKMSGSRSV1']?.['STMTTRNRS']).map(s => {
+    const stmtRs = s?.['STMTRS'];
+    const tranList = stmtRs?.['BANKTRANLIST'];
+    return makeStatement({
+      kind: 'bank',
+      org,
+      fid,
+      acctFrom: stmtRs?.['BANKACCTFROM'],
+      tranList,
+      ledger: stmtRs?.['LEDGERBAL'],
+      stmtTrn: getAsArray(tranList?.['STMTTRN']),
+    });
+  });
+
+  const credit = getAsArray(ofx?.['CREDITCARDMSGSRSV1']?.['CCSTMTTRNRS']).map(
+    s => {
+      const stmtRs = s?.['CCSTMTRS'];
+      const tranList = stmtRs?.['BANKTRANLIST'];
+      return makeStatement({
+        kind: 'credit',
+        org,
+        fid,
+        acctFrom: stmtRs?.['CCACCTFROM'],
+        tranList,
+        ledger: stmtRs?.['LEDGERBAL'],
+        stmtTrn: getAsArray(tranList?.['STMTTRN']),
+      });
+    },
+  );
+
+  const investment = getAsArray(ofx?.['INVSTMTMSGSRSV1']?.['INVSTMTTRNRS']).map(
+    s => {
+      const stmtRs = s?.['INVSTMTRS'];
+      const tranList = stmtRs?.['INVTRANLIST'];
+      return makeStatement({
+        kind: 'investment',
+        org,
+        fid,
+        acctFrom: stmtRs?.['INVACCTFROM'],
+        tranList,
+        ledger: null,
+        stmtTrn: getAsArray(tranList?.['INVBANKTRAN']).flatMap(t =>
+          getAsArray(t?.['STMTTRN']),
+        ),
+      });
+    },
+  );
+
+  return [...bank, ...credit, ...investment];
+}
+
+function makeStatement({
+  kind,
+  org,
+  fid,
+  acctFrom,
+  tranList,
+  ledger,
+  stmtTrn,
+}): OFXStatement {
+  return {
+    kind,
+    org,
+    fid,
+    bankId: ofxText(acctFrom?.['BANKID']),
+    accountId: ofxText(acctFrom?.['ACCTID']),
+    accountType: ofxText(acctFrom?.['ACCTTYPE']),
+    start: ofxDay(tranList?.['DTSTART']),
+    end: ofxDay(tranList?.['DTEND']),
+    ledgerBalance: parseOfxAmount(ledger?.['BALAMT']),
+    ledgerDate: ofxDay(ledger?.['DTASOF']),
+    transactions: stmtTrn.map(mapOfxTransaction),
+  };
+}
+
+function ofxText(value): string | null {
+  return typeof value === 'string' && value !== '' ? value : null;
+}
+
+// OFX dates are YYYYMMDD, optionally followed by a time and a zone.
+function ofxDay(value): string | null {
+  const match = /^(\d{4})(\d{2})(\d{2})/.exec(ofxText(value) ?? '');
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
 }
 
 function getAsArray(value) {
@@ -186,5 +331,6 @@ export async function ofx2json(
   return {
     headers,
     transactions: getStmtTrn(dataParsed).map(mapOfxTransaction),
+    statements: getStatements(dataParsed),
   };
 }

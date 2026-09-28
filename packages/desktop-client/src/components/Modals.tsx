@@ -11,6 +11,7 @@ import { SheetNameProvider } from '#hooks/useSheetName';
 import { closeModal } from '#modals/modalsSlice';
 import { useDispatch } from '#redux';
 
+import { CsvMappingModal } from './bank-file-setup/CsvMappingModal';
 import { EditSyncAccount } from './banksync/EditSyncAccount';
 import { AccountAutocompleteModal } from './modals/AccountAutocompleteModal';
 import { AccountGroupsModal } from './modals/AccountGroupsModal';
@@ -131,6 +132,9 @@ export function Modals() {
 
         case 'import-transactions':
           return <ImportTransactionsModal key={key} {...modal.options} />;
+
+        case 'bank-file-setup-csv-mapping':
+          return <CsvMappingModal key={key} {...modal.options} />;
 
         case 'add-account':
           return <CreateAccountModal key={key} {...modal.options} />;

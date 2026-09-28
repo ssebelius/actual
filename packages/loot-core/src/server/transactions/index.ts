@@ -5,8 +5,13 @@ import * as db from '#server/db';
 import { incrFetch, whereIn } from '#server/db/util';
 import { batchMessages } from '#server/sync';
 import type { Diff } from '#shared/util';
-import type { PayeeEntity, TransactionEntity } from '#types/models';
+import type {
+  CategoryOffer,
+  PayeeEntity,
+  TransactionEntity,
+} from '#types/models';
 
+import { getCategoryOffer } from './category-offer';
 import * as rules from './transaction-rules';
 import * as transfer from './transfer';
 
@@ -42,10 +47,14 @@ export async function batchUpdateTransactions({
   deleted,
   updated,
   learnCategories = false,
+  offerCategory = false,
   detectOrphanPayees = true,
   runTransfers = true,
 }: Partial<Diff<TransactionEntity>> & {
   learnCategories?: boolean;
+  /** Return a merchant category offer for a single-row category edit, and
+   * hold back category learning while one is open */
+  offerCategory?: boolean;
   detectOrphanPayees?: boolean;
   runTransfers?: boolean;
 }) {
@@ -171,18 +180,33 @@ export async function batchUpdateTransactions({
     });
   }
 
+  let categoryOffer: CategoryOffer | null = null;
   if (learnCategories) {
-    // Analyze any updated categories and update rules to learn from
-    // the user's activity
-    const ids = new Set([
-      ...(added ? added.filter(add => add.category).map(add => add.id) : []),
-      ...(updated
-        ? updated.filter(update => update.category).map(update => update.id)
-        : []),
-    ]);
-    await rules.updateCategoryRules(
-      allAdded.concat(allUpdated).filter(trans => ids.has(trans.id)),
-    );
+    const isSingleCategoryEdit =
+      offerCategory &&
+      !added?.length &&
+      !deleted?.length &&
+      updated?.length === 1 &&
+      Boolean(updated[0].category);
+    if (isSingleCategoryEdit) {
+      categoryOffer = await getCategoryOffer(updated[0].id);
+    }
+
+    // While an offer is open the learner waits for the answer; the
+    // client calls category-offer-learn if the offer goes unanswered
+    if (!categoryOffer) {
+      // Analyze any updated categories and update rules to learn from
+      // the user's activity
+      const ids = new Set([
+        ...(added ? added.filter(add => add.category).map(add => add.id) : []),
+        ...(updated
+          ? updated.filter(update => update.category).map(update => update.id)
+          : []),
+      ]);
+      await rules.updateCategoryRules(
+        allAdded.concat(allUpdated).filter(trans => ids.has(trans.id)),
+      );
+    }
   }
 
   if (detectOrphanPayees) {
@@ -213,5 +237,6 @@ export async function batchUpdateTransactions({
     errors: ((added || []) as Partial<TransactionEntity>[])
       .concat(updated || [])
       .flatMap(t => t._ruleErrors || []),
+    categoryOffer,
   };
 }

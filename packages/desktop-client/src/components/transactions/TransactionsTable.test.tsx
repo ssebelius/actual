@@ -45,11 +45,13 @@ import * as modalsSlice from '#modals/modalsSlice';
 import { payeeQueries } from '#payees';
 import { tagQueries } from '#tags/queries';
 
+import type { CategoryOfferState } from './CategoryOfferStrip';
 import {
   DEFAULT_AMOUNT_COLUMN_WIDTHS,
   TransactionTable,
   useAmountColumnWidths,
 } from './TransactionsTable';
+import type { CategoryOfferController } from './useCategoryOffer';
 
 const queryClient = createTestQueryClient();
 
@@ -171,6 +173,8 @@ type LiveTransactionTableProps = {
     transaction: TransactionEntity,
     updatedFieldName?: string | null,
   ) => Promise<TransactionEntity>;
+  categoryOffer?: CategoryOfferController;
+  onViewRule?: (ruleId: string) => void;
 };
 
 function LiveTransactionTable(props: LiveTransactionTableProps) {
@@ -1826,6 +1830,207 @@ describe('Transactions', () => {
       });
       expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('Category offer strip', () => {
+  function fakeController(
+    state: CategoryOfferState | null,
+  ): CategoryOfferController {
+    return {
+      state,
+      highlightedIds: new Set(),
+      beginSave: vi.fn(() => 0),
+      show: vi.fn(),
+      toggleInclude: vi.fn(),
+      apply: vi.fn(() => Promise.resolve()),
+      decline: vi.fn(),
+      undo: vi.fn(() => Promise.resolve()),
+      dismiss: vi.fn(),
+      loadReviewRows: vi.fn(async () => []),
+    };
+  }
+
+  function offerFor(transactionId: string): CategoryOfferState {
+    return {
+      status: 'offer',
+      key: 1,
+      previousCategoryId: null,
+      include: false,
+      offer: {
+        transactionId,
+        payeeId: payees[0].id,
+        categoryId: categories[0].id,
+        uncategorizedIds: ['x'],
+        categorizedCount: 0,
+        categorizedCategoryId: null,
+        replacesRuleCategoryId: null,
+        hasSpecificRule: false,
+      },
+    };
+  }
+
+  test('after an Enter save, focus moves to Apply and Escape returns it', async () => {
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    const input = await editField(container, 'notes', 2);
+    await userEvent.type(input, '[Enter]');
+    expectToBeEditingField(container, 'notes', 3);
+
+    const controller = fakeController(offerFor(getTransactions()[2].id));
+    updateProps({ categoryOffer: controller });
+    const apply = await screen.findByRole('button', { name: 'Apply' });
+    await waitFor(() => expect(apply).toHaveFocus());
+    expect(container.querySelector('input')).toBe(null);
+
+    await userEvent.keyboard('{Escape}');
+    expect(controller.decline).toHaveBeenCalled();
+    await waitFor(() => expectToBeEditingField(container, 'notes', 3));
+  });
+
+  test('Enter off the offer row moves focus to Apply', async () => {
+    // In the category column the first Enter selects and saves, so the
+    // offer arrives while the row is still being edited; the second
+    // Enter moves down and should bring the person to the strip
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    const input = await editField(container, 'notes', 2);
+    const controller = fakeController(offerFor(getTransactions()[2].id));
+    updateProps({ categoryOffer: controller });
+    const apply = await screen.findByRole('button', { name: 'Apply' });
+    expectToBeEditingField(container, 'notes', 2);
+
+    await userEvent.type(input, '[Enter]');
+    await waitFor(() => expect(apply).toHaveFocus());
+
+    await userEvent.keyboard('{Escape}');
+    expect(controller.decline).toHaveBeenCalled();
+    await waitFor(() => expectToBeEditingField(container, 'notes', 3));
+  });
+
+  test('Enter from another row that lands next to the offer keeps focus', async () => {
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    await editField(container, 'notes', 2);
+    updateProps({
+      categoryOffer: fakeController(offerFor(getTransactions()[2].id)),
+    });
+    await screen.findByRole('button', { name: 'Apply' });
+    const input = await editField(container, 'notes', 0);
+    await userEvent.type(input, '[Enter]');
+    expectToBeEditingField(container, 'notes', 1);
+  });
+
+  test('clicking into the next row does not move focus to Apply', async () => {
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    await editField(container, 'notes', 2);
+    updateProps({
+      categoryOffer: fakeController(offerFor(getTransactions()[2].id)),
+    });
+    await screen.findByRole('button', { name: 'Apply' });
+    await editField(container, 'notes', 3);
+    expectToBeEditingField(container, 'notes', 3);
+  });
+
+  test('focus stays put when the person is editing a distant row', async () => {
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    await editField(container, 'notes', 0);
+    updateProps({
+      categoryOffer: fakeController(offerFor(getTransactions()[3].id)),
+    });
+    await screen.findByRole('button', { name: 'Apply' });
+    expectToBeEditingField(container, 'notes', 0);
+  });
+
+  test('a mouse edit leaves focus where it was', async () => {
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    await editField(container, 'notes', 2);
+    updateProps({
+      categoryOffer: fakeController(offerFor(getTransactions()[2].id)),
+    });
+    await screen.findByRole('button', { name: 'Apply' });
+    expectToBeEditingField(container, 'notes', 2);
+  });
+
+  test('answering after a mouse edit closes the open cell', async () => {
+    // Otherwise the cell keeps showing its old value after Undo changes
+    // the row underneath it
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    await editField(container, 'notes', 2);
+    const controller = fakeController(offerFor(getTransactions()[2].id));
+    updateProps({ categoryOffer: controller });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Just this one' }),
+    );
+    expect(controller.decline).toHaveBeenCalled();
+    expect(container.querySelector('input')).toBe(null);
+  });
+
+  test('Undo after a mouse edit closes the open cell', async () => {
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    await editField(container, 'notes', 2);
+    const offer = offerFor(getTransactions()[2].id).offer;
+    const controller = fakeController({
+      status: 'applied',
+      key: 1,
+      offer,
+      result: {
+        changedCount: 1,
+        ruleId: 'r1',
+        restore: { transactions: [], createdRuleId: 'r1', updatedRules: [] },
+      },
+    });
+    updateProps({ categoryOffer: controller });
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(controller.undo).toHaveBeenCalled();
+    expect(container.querySelector('input')).toBe(null);
+  });
+
+  test('the offer sentence is announced politely', async () => {
+    const { getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    updateProps({
+      categoryOffer: fakeController(offerFor(getTransactions()[2].id)),
+    });
+    await screen.findByRole('button', { name: 'Apply' });
+    const region = screen.getByTestId('category-offer-announcement');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(region.textContent).toMatch(/save a rule/);
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  test('changed rows are highlighted', async () => {
+    const { container, getTransactions, updateProps } = renderTransactions({
+      categoryOffer: fakeController(null),
+    });
+    const id = getTransactions()[1].id;
+    updateProps({
+      categoryOffer: { ...fakeController(null), highlightedIds: new Set([id]) },
+    });
+    const row = container.querySelector(
+      `[data-focus-key="${id}"] [data-highlighted="true"]`,
+    );
+    expect(row).not.toBeNull();
+    // Only highlighted rows fade; hover and selection stay immediate
+    const other = container.querySelector(
+      `[data-focus-key="${getTransactions()[2].id}"] [data-testid="row"]`,
+    );
+    expect(getComputedStyle(row!).transition).toMatch(/background-color/);
+    expect(getComputedStyle(other!).transition).toBe('');
   });
 });
 

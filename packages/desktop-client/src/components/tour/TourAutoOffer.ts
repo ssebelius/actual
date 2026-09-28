@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 
@@ -15,12 +16,20 @@ export function TourAutoOffer() {
   const dispatch = useDispatch();
   const { isNarrowWidth } = useResponsive();
   const isTestEnv = useIsTestEnv();
+  const { pathname } = useLocation();
   const { startTour } = useTour();
   const [introSeen, setIntroSeen] = useLocalPref('tour.introSeen');
   const hasOffered = useRef(false);
+  const isInSetup = pathname === '/setup';
 
   useEffect(() => {
-    if (hasOffered.current || introSeen || isNarrowWidth || isTestEnv) {
+    if (
+      hasOffered.current ||
+      introSeen ||
+      isNarrowWidth ||
+      isTestEnv ||
+      isInSetup
+    ) {
       return;
     }
     hasOffered.current = true;
@@ -46,6 +55,7 @@ export function TourAutoOffer() {
   }, [
     dispatch,
     introSeen,
+    isInSetup,
     isNarrowWidth,
     isTestEnv,
     setIntroSeen,

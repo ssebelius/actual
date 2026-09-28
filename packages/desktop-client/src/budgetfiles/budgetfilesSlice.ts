@@ -140,12 +140,18 @@ export const deleteBudget = createAppAsyncThunk(
 type CreateBudgetPayload = {
   testMode?: boolean;
   demoMode?: boolean;
+  /** Open the bank file setup page once the new budget has loaded */
+  openSetup?: boolean;
 };
 
 export const createBudget = createAppAsyncThunk(
   `${sliceName}/createBudget`,
   async (
-    { testMode = false, demoMode = false }: CreateBudgetPayload,
+    {
+      testMode = false,
+      demoMode = false,
+      openSetup = false,
+    }: CreateBudgetPayload,
     { dispatch },
   ) => {
     dispatch(
@@ -165,6 +171,10 @@ export const createBudget = createAppAsyncThunk(
 
     await dispatch(loadAllFiles());
     await dispatch(loadPrefs());
+
+    if (openSetup) {
+      void window.__navigate?.('/setup');
+    }
 
     // Set the loadingText to null after we've loaded the budget prefs
     // so that the existing manager page doesn't flash

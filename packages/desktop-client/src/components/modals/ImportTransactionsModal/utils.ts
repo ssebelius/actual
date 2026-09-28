@@ -164,10 +164,12 @@ export type FieldMapping = {
   category: string | null;
   outflow: string | null;
   inflow: string | null;
+  /** Running balance column; only the bank file setup flow maps it */
+  balance?: string | null;
 };
 
 export function applyFieldMappings(
-  transaction: ImportTransaction,
+  transaction: Partial<ImportTransaction>,
   mappings: FieldMapping,
 ) {
   const result: Partial<ImportTransaction> = {};
@@ -300,7 +302,9 @@ export function filterByStartDate(
   });
 }
 
-export function stripCsvImportTransaction(transaction: ImportTransaction) {
+export function stripCsvImportTransaction(
+  transaction: Partial<ImportTransaction>,
+) {
   const {
     existing: _existing,
     ignored: _ignored,
@@ -312,4 +316,104 @@ export function stripCsvImportTransaction(transaction: ImportTransaction) {
   } = transaction;
 
   return trans;
+}
+
+const PREVIEW_FIELDS = new Set([
+  'existing',
+  'ignored',
+  'selected',
+  'selected_merge',
+  'trx_id',
+  'tombstone',
+]);
+
+export function getInitialMappings(
+  transactions: ReadonlyArray<unknown>,
+): Partial<FieldMapping> {
+  const first = transactions[0];
+  if (typeof first !== 'object' || first === null) {
+    return {};
+  }
+
+  const fields = Object.entries(first).filter(
+    ([name]) => !PREVIEW_FIELDS.has(name),
+  );
+
+  function key(entry: [string, unknown] | undefined) {
+    return entry ? entry[0] : null;
+  }
+
+  const dateField = key(
+    fields.find(([name]) => name.toLowerCase().includes('date')) ||
+      fields.find(([, value]) => String(value).match(/^\d+[-/]\d+[-/]\d+$/)),
+  );
+
+  const amountField = key(
+    fields.find(([name]) => name.toLowerCase().includes('amount')) ||
+      fields.find(([, value]) => String(value).match(/^-?[.,\d]+$/)),
+  );
+
+  const categoryField = key(
+    fields.find(([name]) => name.toLowerCase().includes('category')),
+  );
+
+  const payeeField = key(
+    fields.find(([name]) => name.toLowerCase().includes('payee')) ||
+      fields.find(
+        ([name]) =>
+          name !== dateField && name !== amountField && name !== categoryField,
+      ),
+  );
+
+  const notesField = key(
+    fields.find(([name]) => name.toLowerCase().includes('notes')) ||
+      fields.find(
+        ([name]) =>
+          name !== dateField &&
+          name !== amountField &&
+          name !== categoryField &&
+          name !== payeeField,
+      ),
+  );
+
+  const inOutField = key(
+    fields.find(
+      ([name]) =>
+        name !== dateField &&
+        name !== amountField &&
+        name !== payeeField &&
+        name !== notesField,
+    ),
+  );
+
+  return {
+    date: dateField,
+    amount: amountField,
+    payee: payeeField,
+    notes: notesField,
+    inOut: inOutField,
+    category: categoryField,
+  };
+}
+
+export function getInitialDateFormat(
+  transactions: ReadonlyArray<unknown>,
+  mappings: { date?: string | null },
+): DateFormat {
+  const first = transactions[0];
+  if (first === undefined || mappings.date == null) {
+    return 'yyyy mm dd';
+  }
+
+  const date: unknown =
+    typeof first === 'object' && first !== null
+      ? Reflect.get(first, mappings.date)
+      : null;
+
+  // parseDate rejects anything but a string, so a non-string finds nothing
+  const found =
+    typeof date === 'string'
+      ? dateFormats.find(f => parseDate(date, f.format) != null)
+      : null;
+  return found ? found.format : 'mm dd yyyy';
 }

@@ -383,6 +383,20 @@ export function FinancesApp() {
                     />
 
                     <Route
+                      path="/setup"
+                      element={
+                        <ErrorBoundary
+                          FallbackComponent={FeatureErrorFallback}
+                          resetKeys={[location.pathname]}
+                        >
+                          <NarrowNotSupported>
+                            <WideComponent name="SetupPage" />
+                          </NarrowNotSupported>
+                        </ErrorBoundary>
+                      }
+                    />
+
+                    <Route
                       path="/enablebanking/auth_callback"
                       element={<EnableBankingCallback />}
                     />

@@ -581,7 +581,9 @@ export function BudgetFileSelection({
   const onCreate = ({ testMode = false } = {}) => {
     if (!creating) {
       setCreating(true);
-      void dispatch(createBudget({ testMode }));
+      void dispatch(
+        createBudget({ testMode, openSetup: !testMode && !isNarrowWidth }),
+      );
     }
   };
 

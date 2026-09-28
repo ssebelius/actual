@@ -148,6 +148,10 @@ import {
 } from '#util/schedule-actions';
 
 import {
+  CategoryOfferStrip,
+  getCategoryOfferAnnouncement,
+} from './CategoryOfferStrip';
+import {
   isTransactionTableColumnAvailableInChildRows,
   isTransactionTableColumnDisplayOnly,
   TRANSACTION_TABLE_COLUMN_IDS,
@@ -166,6 +170,7 @@ import type {
   TransactionEditFunction,
   TransactionUpdateFunction,
 } from './table/utils';
+import type { CategoryOfferController } from './useCategoryOffer';
 import { useTransactionRowContextActions } from './useTransactionRowContextActions';
 
 type AmountColumnWidths = {
@@ -2095,14 +2100,19 @@ const Transaction = memo(function Transaction({
       <Row
         ref={rowRef}
         {...dragProps}
+        data-highlighted={highlighted || undefined}
         style={{
-          backgroundColor: selected
-            ? theme.tableRowBackgroundHighlight
-            : backgroundFocus
-              ? theme.tableRowBackgroundHover
-              : index % 2 === 0
-                ? theme.tableBackground
-                : theme.tableRowBackgroundAlternate,
+          // Only a row changed by the category offer fades in; hover and
+          // selection stay immediate
+          ...(highlighted && { transition: 'background-color 0.6s ease-out' }),
+          backgroundColor:
+            selected || highlighted
+              ? theme.tableRowBackgroundHighlight
+              : backgroundFocus
+                ? theme.tableRowBackgroundHover
+                : index % 2 === 0
+                  ? theme.tableBackground
+                  : theme.tableRowBackgroundAlternate,
           ':hover': !(backgroundFocus || selected) && {
             backgroundColor: theme.tableRowBackgroundHover,
           },
@@ -2656,6 +2666,8 @@ type TransactionTableInnerProps = {
   draggedDate?: string | null;
   onDragChange?: OnDragChangeCallback<TransactionEntity>;
   onDrop?: OnDropCallback;
+  categoryOffer?: CategoryOfferController;
+  onViewRule?: (ruleId: string) => void;
 };
 
 function TransactionTableInner({
@@ -2728,6 +2740,127 @@ function TransactionTableInner({
     transactionsToRender,
     props.balances,
   );
+
+  const { t } = useTranslation();
+  const categoryOffer = props.categoryOffer;
+  const offerState = categoryOffer?.state ?? null;
+  const [stripHeight, setStripHeight] = useState(64);
+  const [returnTarget, setReturnTarget] = useState<{
+    id: TransactionEntity['id'];
+    field: string;
+  } | null>(null);
+  const [autoFocusStrip, setAutoFocusStrip] = useState(false);
+
+  // After an Enter save, focus goes to the strip's Apply. In the category
+  // column the first Enter selects and saves, so the offer can arrive
+  // before or after the Enter that moves down; either way, when Enter or
+  // Shift+Enter has moved the table off the offer's own row to the next
+  // one and the offer is still open, take focus once and remember where
+  // the table was going, so that answering returns there. A mouse edit, a
+  // click, or an Enter from any other row keeps focus.
+  // The row an Enter left, cleared by any other key or a pointer press
+  const enterFromId = useRef<TransactionEntity['id'] | null>(null);
+  const [focusedOfferKey, setFocusedOfferKey] = useState<number | null>(null);
+  const offerKey = offerState?.status === 'offer' ? offerState.key : null;
+  useEffect(() => {
+    setReturnTarget(null);
+    setAutoFocusStrip(false);
+  }, [offerKey]);
+  useEffect(() => {
+    if (offerKey === null || !offerState || focusedOfferKey === offerKey) {
+      return;
+    }
+    const anchorIndex = transactionsToRender.findIndex(
+      trans => trans.id === offerState.offer.transactionId,
+    );
+    const editingIndex = transactionsToRender.findIndex(
+      trans => trans.id === tableNavigator.editingId,
+    );
+    const isNextToOffer =
+      editingIndex !== -1 &&
+      anchorIndex !== -1 &&
+      Math.abs(editingIndex - anchorIndex) === 1;
+    if (
+      isNextToOffer &&
+      enterFromId.current === offerState.offer.transactionId
+    ) {
+      setReturnTarget({
+        id: tableNavigator.editingId,
+        field: tableNavigator.focusedField,
+      });
+      tableNavigator.onEdit(null);
+      setAutoFocusStrip(true);
+      setFocusedOfferKey(offerKey);
+    }
+    // Reacts to the offer and to the editing row only
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [offerKey, tableNavigator.editingId]);
+
+  function returnFocus() {
+    if (returnTarget) {
+      tableNavigator.onEdit(returnTarget.id, returnTarget.field);
+      setReturnTarget(null);
+    } else {
+      // After a mouse edit the cell is still open, and it keeps its own
+      // value: close it so it redraws from the data the answer changes
+      tableNavigator.onEdit(null);
+    }
+    setAutoFocusStrip(false);
+  }
+
+  const categoriesById = getCategoriesById(props.categoryGroups);
+  const getCategoryName = (id: string) => categoriesById[id]?.name ?? '';
+  const getAccountName = (id: string) =>
+    props.accounts.find(account => account.id === id)?.name ?? '';
+  const offerPayeeName = offerState
+    ? (props.payees.find(payee => payee.id === offerState.offer.payeeId)
+        ?.name ?? '')
+    : '';
+  const announcement = offerState
+    ? getCategoryOfferAnnouncement(
+        offerState,
+        { payee: offerPayeeName, category: getCategoryName },
+        t,
+      )
+    : '';
+
+  const offerGap =
+    offerState && categoryOffer
+      ? {
+          afterId: offerState.offer.transactionId,
+          size: stripHeight,
+          content: (
+            <CategoryOfferStrip
+              state={offerState}
+              payeeName={offerPayeeName}
+              getCategoryName={getCategoryName}
+              getAccountName={getAccountName}
+              autoFocus={autoFocusStrip}
+              onToggleInclude={categoryOffer.toggleInclude}
+              onApply={onlyIds => {
+                void categoryOffer.apply(onlyIds);
+                returnFocus();
+              }}
+              onDecline={() => {
+                categoryOffer.decline();
+                returnFocus();
+              }}
+              onUndo={() => {
+                void categoryOffer.undo();
+                returnFocus();
+              }}
+              onViewRule={() => {
+                if (offerState.status === 'applied') {
+                  props.onViewRule?.(offerState.result.ruleId);
+                }
+              }}
+              onDismiss={categoryOffer.dismiss}
+              loadReviewRows={categoryOffer.loadReviewRows}
+              onHeightChange={setStripHeight}
+            />
+          ),
+        }
+      : undefined;
 
   const renderRow: TableProps<TransactionEntity>['renderItem'] = ({
     item,
@@ -2820,7 +2953,7 @@ function TransactionTableInner({
         subtransactions={childTransactions}
         columns={columns}
         selected={selected}
-        highlighted={false}
+        highlighted={props.categoryOffer?.highlightedIds.has(trans.id) ?? false}
         added={isNew?.(trans.id)}
         expanded={isExpanded?.(trans.id)}
         matched={isMatched?.(trans.id)}
@@ -2951,6 +3084,9 @@ function TransactionTableInner({
       <View
         style={{ flex: 1, overflow: 'hidden' }}
         data-testid="transaction-table"
+        onMouseDownCapture={() => {
+          enterFromId.current = null;
+        }}
       >
         <Table
           navigator={tableNavigator}
@@ -2961,9 +3097,30 @@ function TransactionTableInner({
           renderEmpty={renderEmpty}
           loadMore={props.loadMoreTransactions}
           isSelected={id => props.selectedItems.has(id)}
-          onKeyDown={e => props.onCheckEnter(e)}
+          onKeyDown={e => {
+            enterFromId.current =
+              e.key === 'Enter' ? tableNavigator.editingId : null;
+            props.onCheckEnter(e);
+          }}
           saveScrollWidth={saveScrollWidth}
+          gap={offerGap}
         />
+
+        {/* Mounted before any offer so screen readers register it */}
+        <div
+          aria-live="polite"
+          data-testid="category-offer-announcement"
+          style={{
+            position: 'absolute',
+            width: 1,
+            height: 1,
+            overflow: 'hidden',
+            clip: 'rect(0 0 0 0)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {announcement}
+        </div>
 
         {props.isAdding && (
           <div
@@ -3053,6 +3210,8 @@ export type TransactionTableProps = {
   showSelection: boolean;
   allowSplitTransaction?: boolean;
   onManagePayees: (id?: PayeeEntity['id']) => void;
+  categoryOffer?: CategoryOfferController;
+  onViewRule?: (ruleId: string) => void;
 };
 
 export const TransactionTable = forwardRef(

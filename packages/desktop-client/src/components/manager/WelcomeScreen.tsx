@@ -119,7 +119,7 @@ export function WelcomeScreen() {
           variant="primary"
           autoFocus={!isNarrowWidth}
           style={buttonStyle}
-          onPress={() => dispatch(createBudget({}))}
+          onPress={() => dispatch(createBudget({ openSetup: !isNarrowWidth }))}
         >
           <Trans>Start budgeting</Trans>
         </Button>

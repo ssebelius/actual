@@ -2,6 +2,7 @@
 import React, {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
@@ -951,6 +952,8 @@ export type TableProps<T extends TableItem = TableItem> = {
   onKeyDown?: (e: KeyboardEvent) => void;
   isSelected?: (id: T['id']) => boolean;
   saveScrollWidth?: (parent, child) => void;
+  /** Space opened after the row with `afterId`, rendering `content` */
+  gap?: { afterId: T['id']; size: number; content: ReactNode };
 };
 
 export const Table = forwardRef(
@@ -973,6 +976,7 @@ export const Table = forwardRef(
       isSelected,
       saveScrollWidth,
       listContainerRef,
+      gap,
       ...props
     },
     ref,
@@ -993,6 +997,22 @@ export const Table = forwardRef(
     const scrollContainer = useRef(null);
     const initialScrollTo = useRef(null);
     const listInitialized = useRef(false);
+
+    // If the gap's row leaves the list (a refetch in a filtered view), keep
+    // the gap where it was rather than dropping what it shows
+    const foundGapIndex = gap
+      ? items.findIndex(item => item.id === gap.afterId)
+      : -1;
+    const [lastGapIndex, setLastGapIndex] = useState(-1);
+    useEffect(() => {
+      if (foundGapIndex !== -1) {
+        setLastGapIndex(foundGapIndex);
+      }
+    }, [foundGapIndex]);
+    const gapIndex =
+      foundGapIndex !== -1
+        ? foundGapIndex
+        : Math.min(lastGapIndex, items.length - 1);
 
     useImperativeHandle(ref, () => ({
       scrollTo: (id, alignment = 'smart') => {
@@ -1186,7 +1206,12 @@ export const Table = forwardRef(
           }}
         >
           {isEmpty ? (
-            getEmptyContent(renderEmpty)
+            <>
+              {/* The gap's row is gone, but what it shows (such as a
+                  confirmation with Undo) still applies */}
+              {gap?.content}
+              {getEmptyContent(renderEmpty)}
+            </>
           ) : (
             <AutoSizer
               renderProp={({ width = 0, height = 0 }) => {
@@ -1218,6 +1243,15 @@ export const Table = forwardRef(
                           : 0
                       }
                       overscanCount={5}
+                      gap={
+                        gap && gapIndex !== -1
+                          ? {
+                              afterIndex: gapIndex,
+                              size: gap.size,
+                              content: gap.content,
+                            }
+                          : undefined
+                      }
                       onItemsRendered={onItemsRendered}
                       onScroll={onScroll}
                     />
