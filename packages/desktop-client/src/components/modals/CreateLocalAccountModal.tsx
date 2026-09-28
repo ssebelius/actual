@@ -6,6 +6,7 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { FormError } from '@actual-app/components/form-error';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { InlineField } from '@actual-app/components/inline-field';
 import { Input } from '@actual-app/components/input';
@@ -36,6 +37,7 @@ export function CreateLocalAccountModal() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const isUsingServer = useSyncServerStatus() !== 'no-server';
+  const { isNarrowWidth } = useResponsive();
   const { data: accounts = [] } = useAccounts();
   const [name, setName] = useState('');
   const [offbudget, setOffbudget] = useState(false);
@@ -98,6 +100,37 @@ export function CreateLocalAccountModal() {
             rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View>
+            {!isUsingServer && !isNarrowWidth && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 4,
+                  marginBottom: 10,
+                }}
+              >
+                <Text style={{ color: theme.pageTextSubdued }}>
+                  <Trans>
+                    Starting from files you downloaded from your banks?
+                  </Trans>
+                </Text>
+                <Button
+                  variant="bare"
+                  style={{
+                    padding: 0,
+                    color: theme.pageTextLink,
+                    textDecoration: 'underline',
+                  }}
+                  onPress={() => {
+                    dispatch(closeModal());
+                    void navigate('/setup', { state: { skipChoice: true } });
+                  }}
+                >
+                  <Trans>Set up from bank files</Trans>
+                </Button>
+              </View>
+            )}
             {!isUsingServer && (
               <Text
                 style={{

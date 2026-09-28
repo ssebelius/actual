@@ -32,6 +32,7 @@ import { useSyncedPref } from '#hooks/useSyncedPref';
 import { AutoSizingBudgetTable } from './DynamicBudgetTable';
 import * as envelopeBudget from './envelope/EnvelopeBudgetComponents';
 import { EnvelopeBudgetProvider } from './envelope/EnvelopeBudgetContext';
+import { NoAccountsOffer } from './NoAccountsOffer';
 import * as trackingBudget from './tracking/TrackingBudgetComponents';
 import { TrackingBudgetProvider } from './tracking/TrackingBudgetContext';
 import { prewarmAllMonths, prewarmMonth } from './util';
@@ -256,6 +257,7 @@ export function Budget() {
           overflow: 'hidden',
         }}
       >
+        <NoAccountsOffer />
         <View style={{ flex: 1 }}>{table}</View>
       </View>
     </SheetNameProvider>
