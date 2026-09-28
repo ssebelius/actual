@@ -17,8 +17,8 @@ later. People working through a backlog after their first import fix the same
 merchant again and again.
 
 The change is a short offer that appears after a category edit: "Also set 1
-other Chick-fil-A transaction to Fast food, and use Fast food for Chick-fil-A
-from now on?" Accepting updates those transactions and saves a rule the person
+other uncategorized Chick-fil-A transaction to Fast food, and save a rule to
+use Fast food for Chick-fil-A from now on?" Accepting updates those transactions and saves a rule the person
 can see and edit on the Rules page. Declining changes nothing else.
 Transactions that already have a different category are left alone unless the
 person explicitly includes them.
@@ -124,11 +124,14 @@ flowchart LR
    other transaction and either some of them are uncategorized or no rule
    already sets the payee to this category. Otherwise nothing is shown and the
    silent learning runs as it does today.
-3. When an offer is shown, the silent learning does not run for that edit.
-   The offer replaces it, so declining never leaves a rule behind.
-4. The offer names the payee, the category and the count: "Also set 1 other
-   Chick-fil-A transaction to Fast food, and use Fast food for Chick-fil-A
-   from now on?" It has two actions, Apply and Just this one.
+3. When an offer is shown, the silent learning waits for the answer. Apply
+   saves its own rule, and an explicit Just this one means no rule is learned
+   from this edit. If the person moves on without answering, the silent
+   learning runs as it would have.
+4. The offer names the payee, the category, the count, and that a rule will be
+   saved: "Also set 1 other uncategorized Chick-fil-A transaction to Fast
+   food, and save a rule to use Fast food for Chick-fil-A from now on?" It has
+   two actions, Apply and Just this one.
 5. When the payee's other categorized transactions all share one different
    category, a secondary option shows that count: "Include 10 marked Dining
    Out." It is off unless the person turns it on.
@@ -139,9 +142,8 @@ flowchart LR
    confirmation says what happened and offers Undo and View rule.
 8. Just this one, closing the offer, or ignoring it changes nothing more.
 
-Actual's notifications hold one button and inline links, with no checkbox, so
-this offer needs either a richer notification or a small surface of its own.
-That choice belongs to the UX pass.
+Where the offer appears is set out in [the UX directions](ux/directions.md).
+The recommendation is a band directly under the edited row.
 
 ## Alternatives considered
 
@@ -186,11 +188,14 @@ Monarch help center article 360048393372 (Quick rules),
    in the desktop transaction table, Actual shows an offer when the payee has
    at least one other transaction and either some of them are uncategorized or
    no simple rule already sets the payee to that category.
-2. When an offer is shown, the silent learner does not run for that edit. The
-   only rule change comes from Apply.
-3. The offer names the payee, the category, and the number of other
-   uncategorized transactions it would change. With none to change, it offers
-   only to remember the category for future transactions.
+2. When an offer is shown, the silent learner waits for the answer. Apply
+   saves the rule; Just this one or Escape means no rule is learned from that
+   edit. Moving on without answering (editing another row, leaving the view)
+   counts as no answer, and the silent learner then runs for that edit as it
+   does today.
+3. The offer names the payee, the category, the number of other
+   uncategorized transactions it would change, and that a rule will be saved.
+   With none to change, it offers only to save the rule.
 4. When all of the payee's other categorized transactions share one category
    different from the new one, the offer shows an unselected option with that
    count to include them. With more than one other category, the option is not
@@ -212,8 +217,8 @@ Monarch help center article 360048393372 (Quick rules),
 9. The offer respects the existing controls: nothing is offered when the
    "learn categories" setting is off, or when learning is turned off for that
    payee.
-10. Only one offer is shown at a time. Editing another transaction replaces
-    the open offer with a new one or dismisses it.
+10. Only one offer is shown at a time. Editing another transaction closes the
+    open offer as unanswered, and may show a new one for that edit.
 
 ## Edge cases
 

@@ -12,12 +12,12 @@ is not yet an owner decision.
 
 ## Decisions to confirm
 
-| #   | Proposal                                                                                    | Source  | Why it was adopted                                                                                                                                                                                       |
-| --- | ------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | When an offer is shown, the silent learner skips that edit (Requirement 2)                  | Product | Without it, "Just this one" can still leave a rule behind, because the learner runs inside the same edit. Declining would not mean declining.                                                            |
-| 2   | Offer only when the payee has at least one other transaction (Requirement 1)                | Product | Offering whenever no rule exists interrupts nearly every edit in a fresh budget, including one-off merchants. The cost is that a new merchant gets its rule on the second purchase instead of the first. |
-| 3   | Undo reverts the Apply step only, and only while Apply is the latest change (Requirement 7) | Product | Actual's undo is one global stack and the row edit is its own step, so an Undo button left on screen after further edits would revert the wrong change.                                                  |
-| 4   | Show "include" only when the other categorized rows share one category (Requirement 4)      | Product | "Include 14 with other categories" is a blind overwrite that strains the goal of never overwriting a choice without an explicit decision.                                                                |
+| #   | Proposal                                                                                                                                                                      | Source                 | Why it was adopted                                                                                                                                                                                                                                                     |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | When an offer is shown, the silent learner waits for the answer: Apply saves the rule, an explicit decline learns nothing, and no answer lets the learner run (Requirement 2) | Product, revised by UX | The product review proposed skipping the learner whenever an offer shows, so that declining really declines. The UX review found that in the transaction table Enter saves and moves on, so most offers would close unanswered and people would learn less than today. |
+| 2   | Offer only when the payee has at least one other transaction (Requirement 1)                                                                                                  | Product                | Offering whenever no rule exists interrupts nearly every edit in a fresh budget, including one-off merchants. The cost is that a new merchant gets its rule on the second purchase instead of the first.                                                               |
+| 3   | Undo reverts the Apply step only, and only while Apply is the latest change (Requirement 7)                                                                                   | Product                | Actual's undo is one global stack and the row edit is its own step, so an Undo button left on screen after further edits would revert the wrong change.                                                                                                                |
+| 4   | Show "include" only when the other categorized rows share one category (Requirement 4)                                                                                        | Product                | "Include 14 with other categories" is a blind overwrite that strains the goal of never overwriting a choice without an explicit decision.                                                                                                                              |
 
 ## Corrections and additions
 
@@ -42,3 +42,10 @@ is not yet an owner decision.
 | ---------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------- |
 | The learner's look-back window runs 180 days either side of the edited dates | Research | Correct, but it changes no decision in this PRD                                         |
 | Under the new sidebar design, Rules is on the main navigation                | Research | Noted as "in the default sidebar"; the silence of the learner is the problem either way |
+
+## UX review
+
+The UX directions had their own review pass, recorded in
+[ux/directions.md](ux/directions.md#ux-review). Two of its findings changed
+this PRD: the silent-learning rule in decision 1 above, and the offer copy,
+which now says that a rule will be saved.
