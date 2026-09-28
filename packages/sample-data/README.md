@@ -1,8 +1,13 @@
-# Sample data generator
+# Sample data
 
-Generates a realistic, reproducible sample budget for Actual and writes it as
-an Actual export (`.zip`) that the app can import directly. No sync server or
-bank connection is needed.
+Everything needed to try Actual with realistic data, without a sync server or
+a bank connection:
+
+- `yarn seed` generates a reproducible sample budget and writes it as an
+  Actual export (`.zip`) that the app can import directly. Most of this README
+  is about it.
+- [`bank-files/`](bank-files/) holds two small bank downloads for trying
+  [setup from bank files](#sample-bank-files) on a new budget.
 
 ## Quick start
 
@@ -58,6 +63,35 @@ asked interactively, or takes its default with `--yes`.
 - `freelancer`: irregular client income, quarterly taxes, and a business card
   that shares merchants with personal spending. The right category often
   depends on which card was used, which makes it the hardest to categorize.
+
+## Sample bank files
+
+`bank-files/` has one statement from each of two Chase accounts, the same
+files the end-to-end test for bank file setup uses:
+
+- `chase-checking.qfx`: 8 checking transactions from July 1 to August 3,
+  2026, with the bank's balance of $6,210.48 on August 3.
+- `chase-sapphire.csv`: 6 credit card transactions in Chase's CSV layout,
+  with no balance in the file.
+
+To try them, start the app, choose **Start budgeting**, then **Set up from bank
+files**, and:
+
+1. Add `chase-checking.qfx` to the first account. Setup reads the bank from
+   the file (JPMorgan Chase) and the balance from its ledger balance; give
+   the account a name.
+2. Choose **Add account**, set the new account's type to **Credit card**, and
+   add `chase-sapphire.csv`. Map the columns: date is `Transaction Date`,
+   payee is `Description`, amount is `Amount`, and the date format is
+   `MM/DD/YYYY`.
+3. Enter **412.60** as the amount owed on the card.
+4. Under **Likely transfers**, confirm the $523.10 card payment, which appears
+   in both files.
+
+The review shows starting balances of $1,250.00 for checking and $721.95 owed
+on the card, which make each account's history add up to its balance. Create
+makes 2 accounts and 14 transactions, and the sidebar shows $6,210.48 in
+checking, -$412.60 on the card, and $5,797.88 in total.
 
 ## Custom households
 

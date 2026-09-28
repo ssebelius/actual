@@ -2,7 +2,7 @@
   "name": "@actual-app/sample-data",
   "version": "0.0.0",
   "private": true,
-  "description": "Generates realistic, reproducible sample budgets for Actual",
+  "description": "Sample budgets and bank files for trying Actual",
   "license": "MIT",
   "type": "module",
   "scripts": {
