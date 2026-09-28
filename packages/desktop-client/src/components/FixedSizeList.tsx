@@ -44,6 +44,8 @@ type FixedSizeListProps = {
   header?: ReactNode;
   innerRef?: Ref<HTMLDivElement>;
   itemKey?: (index: number) => string | number;
+  /** Space opened after one row, rendering `content` in it */
+  gap?: { afterIndex: number; size: number; content: ReactNode };
 };
 
 type FixedSizeListState = {
@@ -261,6 +263,23 @@ export class FixedSizeList extends PureComponent<
           }}
         >
           {items}
+          {this.props.gap && (
+            <div
+              key="__gap"
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top:
+                  this.getItemOffset(this.props.gap.afterIndex) +
+                  this.props.itemSize,
+                height: this.props.gap.size,
+                zIndex: 102,
+              }}
+            >
+              {this.props.gap.content}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -301,9 +320,20 @@ export class FixedSizeList extends PureComponent<
     return this.anchored != null;
   }
 
-  getItemOffset = (index: number) => index * this.props.itemSize;
+  getGapStart = () =>
+    this.props.gap
+      ? (this.props.gap.afterIndex + 1) * this.props.itemSize
+      : Infinity;
+  getGapSize = () => this.props.gap?.size ?? 0;
+
+  getItemOffset = (index: number) =>
+    index * this.props.itemSize +
+    (this.props.gap && index > this.props.gap.afterIndex
+      ? this.getGapSize()
+      : 0);
   getItemSize = () => this.props.itemSize;
-  getEstimatedTotalSize = () => this.props.itemSize * this.props.itemCount;
+  getEstimatedTotalSize = () =>
+    this.props.itemSize * this.props.itemCount + this.getGapSize();
 
   getOffsetForIndexAndAlignment = (
     index: number,
@@ -311,15 +341,10 @@ export class FixedSizeList extends PureComponent<
     scrollOffset?: number,
   ) => {
     const size = this.props.height;
-    const lastItemOffset = Math.max(
-      0,
-      this.props.itemCount * this.props.itemSize - size,
-    );
-    const maxOffset = Math.min(lastItemOffset, index * this.props.itemSize);
-    const minOffset = Math.max(
-      0,
-      index * this.props.itemSize - size + this.props.itemSize,
-    );
+    const lastItemOffset = Math.max(0, this.getEstimatedTotalSize() - size);
+    const itemOffset = this.getItemOffset(index);
+    const maxOffset = Math.min(lastItemOffset, itemOffset);
+    const minOffset = Math.max(0, itemOffset - size + this.props.itemSize);
 
     if (align === 'smart') {
       if (
@@ -363,17 +388,27 @@ export class FixedSizeList extends PureComponent<
     }
   };
 
-  getStartIndexForOffset = (offset: number) =>
-    Math.max(
+  getStartIndexForOffset = (offset: number) => {
+    const gapStart = this.getGapStart();
+    const gapSize = this.getGapSize();
+    // An offset inside the gap belongs to the row after it
+    const adjusted =
+      offset >= gapStart + gapSize
+        ? offset - gapSize
+        : offset >= gapStart
+          ? gapStart
+          : offset;
+    return Math.max(
       0,
       Math.min(
         this.props.itemCount - 1,
-        Math.floor(offset / this.props.itemSize),
+        Math.floor(adjusted / this.props.itemSize),
       ),
     );
+  };
 
   getStopIndexForStartIndex = (startIndex: number, scrollOffset: number) => {
-    const offset = startIndex * this.props.itemSize;
+    const offset = this.getItemOffset(startIndex);
     const size = this.props.height;
     const numVisibleItems = Math.ceil(
       (size + scrollOffset - offset) / this.props.itemSize,
@@ -448,7 +483,14 @@ export class FixedSizeList extends PureComponent<
   _getItemStyle = (index: number) => {
     const { direction, itemSize, layout } = this.props;
 
-    const itemStyleCache = this._getItemStyleCache(itemSize, layout, direction);
+    // The gap is part of the key so rendered rows move when it changes
+    const itemStyleCache = this._getItemStyleCache(
+      itemSize,
+      layout,
+      direction,
+      this.props.gap?.afterIndex ?? -1,
+      this.getGapSize(),
+    );
 
     let style: CSSProperties;
     if (itemStyleCache.hasOwnProperty(index)) {
@@ -469,7 +511,7 @@ export class FixedSizeList extends PureComponent<
     return style;
   };
 
-  _getItemStyleCache = memoizeOne((_, __, ___) => ({}));
+  _getItemStyleCache = memoizeOne((_, __, ___, ____, _____) => ({}));
 
   _getRangeToRender() {
     const { itemCount, overscanCount } = this.props;
@@ -565,8 +607,7 @@ export class FixedSizeList extends PureComponent<
     this.setState({ isScrolling: false }, () => {
       // Clear style cache after state update has been committed.
       // This way we don't break pure sCU for items that don't use isScrolling param.
-      // @ts-expect-error fix me
-      this._getItemStyleCache(-1, null);
+      this._getItemStyleCache(-1, null, null, null, null);
     });
   };
 }
