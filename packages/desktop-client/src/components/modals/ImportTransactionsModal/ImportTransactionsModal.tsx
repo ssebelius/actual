@@ -42,19 +42,20 @@ import { payeeQueries } from '#payees';
 
 import { DateFormatSelect } from './DateFormatSelect';
 import { FieldMappings } from './FieldMappings';
+import { importSettingsPrefs, isCamtFile, isOfxFile } from './importSettings';
 import { InOutOption } from './InOutOption';
 import { MultiplierOption } from './MultiplierOption';
 import { Transaction } from './Transaction';
 import type { DateFormat, FieldMapping, ImportTransaction } from './utils';
 import {
   applyFieldMappings,
-  dateFormats,
   filterByStartDate,
+  getInitialDateFormat,
+  getInitialMappings,
   isDateFormat,
   parseAmountFields,
   parseCategoryFields,
   parseDate,
-  stripCsvImportTransaction,
 } from './utils';
 
 function CheckboxToggle({
@@ -85,86 +86,6 @@ function getFileType(filepath: string): string {
   const rawType = m[1].toLowerCase();
   if (rawType === 'tsv') return 'csv';
   return rawType;
-}
-
-function getInitialDateFormat(transactions, mappings) {
-  if (transactions.length === 0 || mappings.date == null) {
-    return 'yyyy mm dd';
-  }
-
-  const transaction = transactions[0];
-  const date = transaction[mappings.date];
-
-  const found =
-    date == null
-      ? null
-      : dateFormats.find(f => parseDate(date, f.format) != null);
-  return found ? found.format : 'mm dd yyyy';
-}
-
-function getInitialMappings(transactions) {
-  if (transactions.length === 0) {
-    return {};
-  }
-
-  const transaction = stripCsvImportTransaction(transactions[0]);
-  const fields = Object.entries(transaction);
-
-  function key(entry) {
-    return entry ? entry[0] : null;
-  }
-
-  const dateField = key(
-    fields.find(([name]) => name.toLowerCase().includes('date')) ||
-      fields.find(([, value]) => String(value)?.match(/^\d+[-/]\d+[-/]\d+$/)),
-  );
-
-  const amountField = key(
-    fields.find(([name]) => name.toLowerCase().includes('amount')) ||
-      fields.find(([, value]) => String(value)?.match(/^-?[.,\d]+$/)),
-  );
-
-  const categoryField = key(
-    fields.find(([name]) => name.toLowerCase().includes('category')),
-  );
-
-  const payeeField = key(
-    fields.find(([name]) => name.toLowerCase().includes('payee')) ||
-      fields.find(
-        ([name]) =>
-          name !== dateField && name !== amountField && name !== categoryField,
-      ),
-  );
-
-  const notesField = key(
-    fields.find(([name]) => name.toLowerCase().includes('notes')) ||
-      fields.find(
-        ([name]) =>
-          name !== dateField &&
-          name !== amountField &&
-          name !== categoryField &&
-          name !== payeeField,
-      ),
-  );
-
-  const inOutField = key(
-    fields.find(
-      ([name]) =>
-        name !== dateField &&
-        name !== amountField &&
-        name !== payeeField &&
-        name !== notesField,
-    ),
-  );
-
-  return {
-    date: dateField,
-    amount: amountField,
-    payee: payeeField,
-    notes: notesField,
-    inOut: inOutField,
-    category: categoryField,
-  };
 }
 
 type LastParse = {
@@ -356,6 +277,7 @@ export function ImportTransactionsModal({
           inflow: _inflow,
           outflow: _outflow,
           inOut: _inOut,
+          balance: _balance,
           existing: _existing,
           ignored: _ignored,
           selected: _selected,
@@ -427,16 +349,15 @@ export function ImportTransactionsModal({
 
         if (filetype === 'csv') {
           if (!preserveImportSettings) {
-            let mappings = prefs[`csv-mappings-${accountId}`];
-            mappings = mappings
-              ? JSON.parse(mappings)
+            const savedMappings = prefs[`csv-mappings-${accountId}`];
+            const mappings: Partial<FieldMapping> = savedMappings
+              ? JSON.parse(savedMappings)
               : getInitialMappings(transactions);
 
             // @ts-expect-error - mappings might not have outflow/inflow properties
             setFieldMappings(mappings);
 
             // Set initial split mode based on any saved mapping
-            // @ts-expect-error - mappings might not have outflow/inflow properties
             const splitMode = !!(mappings.outflow || mappings.inflow);
             setSplitMode(splitMode);
 
@@ -687,6 +608,7 @@ export function ImportTransactionsModal({
         inflow: _inflow,
         outflow: _outflow,
         inOut: _inOut,
+        balance: _balance,
         existing: _existing,
         ignored: _ignored,
         selected: _selected,
@@ -721,57 +643,26 @@ export function ImportTransactionsModal({
       return;
     }
 
-    if (!isOfxFile(filetype) && !isCamtFile(filetype)) {
-      const key = `parse-date-${accountId}-${filetype}`;
-      savePrefs({ [key]: parseDateFormat });
-    }
-
-    if (isOfxFile(filetype)) {
-      savePrefs({
-        [`ofx-fallback-missing-payee-${accountId}`]: String(
-          fallbackMissingPayeeToMemo,
-        ),
-        [`ofx-swap-payee-memo-${accountId}`]: String(ofxSwapPayeeAndMemo),
-      });
-    }
-
-    if (filetype === 'csv') {
-      savePrefs({
-        [`csv-mappings-${accountId}`]: JSON.stringify(fieldMappings),
-      });
-      savePrefs({ [`csv-delimiter-${accountId}`]: delimiter });
-      savePrefs({ [`csv-encoding-${accountId}`]: csvEncoding });
-      savePrefs({ [`csv-has-header-${accountId}`]: String(hasHeaderRow) });
-      savePrefs({
-        [`csv-skip-start-lines-${accountId}`]: String(skipStartLines),
-      });
-      savePrefs({ [`csv-skip-end-lines-${accountId}`]: String(skipEndLines) });
-      savePrefs({ [`csv-in-out-mode-${accountId}`]: String(inOutMode) });
-      savePrefs({ [`csv-out-value-${accountId}`]: String(outValue) });
-    }
-
-    if (filetype === 'csv' || filetype === 'qif') {
-      savePrefs({
-        [`flip-amount-${accountId}-${filetype}`]: String(flipAmount),
-        [`import-notes-${accountId}-${filetype}`]: String(importNotes),
-      });
-    }
-
-    if (filetype === 'qif') {
-      savePrefs({
-        [`qif-swap-payee-memo-${accountId}`]: String(qifSwapPayeeAndMemo),
-      });
-    }
-
-    if (isCamtFile(filetype)) {
-      savePrefs({
-        [`camt-swap-payee-memo-${accountId}`]: String(camtSwapPayeeAndMemo),
-      });
-    }
-
-    savePrefs({
-      [`import-reimport-deleted-${accountId}`]: String(reimportDeleted),
-    });
+    savePrefs(
+      importSettingsPrefs(accountId, filetype, {
+        fieldMappings,
+        parseDateFormat,
+        delimiter,
+        encoding: csvEncoding,
+        hasHeaderRow,
+        skipStartLines,
+        skipEndLines,
+        inOutMode,
+        outValue,
+        flipAmount,
+        importNotes,
+        fallbackMissingPayeeToMemo,
+        ofxSwapPayeeAndMemo,
+        qifSwapPayeeAndMemo,
+        camtSwapPayeeAndMemo,
+        reimportDeleted,
+      }),
+    );
 
     importTransactions.mutate(
       {
@@ -1431,12 +1322,4 @@ function getSwapOption(
   }
 
   return false;
-}
-
-function isOfxFile(fileType: string) {
-  return fileType === 'ofx' || fileType === 'qfx';
-}
-
-function isCamtFile(fileType: string) {
-  return fileType === 'xml';
 }

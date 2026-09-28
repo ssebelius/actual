@@ -10,6 +10,8 @@ type SelectFieldProps = {
   onChange: (newValue: string) => void;
   hasHeaderRow: boolean;
   firstTransaction: Record<string, unknown>;
+  /** The picker's visible label, e.g. "Payee" */
+  'aria-label': string;
 };
 
 export function SelectField({
@@ -19,6 +21,7 @@ export function SelectField({
   onChange,
   hasHeaderRow,
   firstTransaction,
+  'aria-label': ariaLabel,
 }: SelectFieldProps) {
   const columns = options.map(
     option =>
@@ -35,6 +38,7 @@ export function SelectField({
 
   return (
     <Select
+      aria-label={ariaLabel}
       options={[['choose-field', 'Choose field...'], ...columns]}
       value={value === null ? 'choose-field' : value}
       onChange={onChange}

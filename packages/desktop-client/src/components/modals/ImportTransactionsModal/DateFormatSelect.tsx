@@ -10,7 +10,7 @@ import { dateFormats } from './utils';
 import type { DateFormat, FieldMapping, ImportTransaction } from './utils';
 
 type DateFormatSelectProps = {
-  transactions: ImportTransaction[];
+  transactions: Array<Partial<ImportTransaction>>;
   fieldMappings?: FieldMapping;
   parseDateFormat?: DateFormat;
   onChange: (newValue: string) => void;

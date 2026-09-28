@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import { Button } from './Button';
@@ -40,6 +40,11 @@ type SelectProps<Value> = {
   style?: CSSProperties;
   popoverStyle?: CSSProperties;
   className?: string;
+  /**
+   * Names the trigger. The chosen option's text then becomes its
+   * description, so it is still announced.
+   */
+  'aria-label'?: string;
 };
 
 /**
@@ -69,6 +74,7 @@ export function Select<const Value = string>({
   style = {},
   popoverStyle = {},
   className,
+  'aria-label': ariaLabel,
 }: SelectProps<Value>) {
   const targetOption = options
     .filter(isValueOption)
@@ -76,12 +82,15 @@ export function Select<const Value = string>({
 
   const triggerRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
+  const valueId = useId();
 
   return (
     <>
       <Button
         ref={triggerRef}
         id={id}
+        aria-label={ariaLabel}
+        aria-describedby={ariaLabel ? valueId : undefined}
         variant={bare ? 'bare' : 'normal'}
         isDisabled={disabled}
         onPress={() => {
@@ -100,6 +109,7 @@ export function Select<const Value = string>({
           }}
         >
           <span
+            id={valueId}
             style={{
               textAlign: 'left',
               overflow: 'hidden',
