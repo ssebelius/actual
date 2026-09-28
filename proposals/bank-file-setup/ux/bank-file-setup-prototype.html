@@ -1,0 +1,1646 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bank file setup prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Light-theme values of Actual's semantic tokens (DESIGN.md). */
+      :root {
+        --purple: #8719e0;
+        --purple-hover: #a368fc;
+        --navy-ink: #102a43;
+        --slate: #627d98;
+        --mist: #e8ecf0;
+        --frost: #f7fafc;
+        --ink: #272630;
+        --white: #ffffff;
+        --green: #147d64;
+        --red: #e12d39;
+        --blue: #1980d4;
+        --gold: #b88115;
+        --warning-bg: #fff8e6; /* warningBackground, approximate */
+        --notice-bg: #effcf6; /* noticeBackgroundLight */
+        --notice-border: #27ab83; /* noticeBorder */
+        --sidebar-text: #d9e2ec;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--mist);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .num {
+        font-feature-settings: 'tnum', 'ss01', 'ss04';
+        text-align: right;
+      }
+      .neg {
+        color: var(--red);
+      }
+      /* Review chrome: not part of the design. */
+      .review-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        background: #1b1b1f;
+        color: #f2f2f2;
+        min-height: 44px;
+      }
+      .review-bar .tabs button {
+        background: none;
+        border: 1px solid #444;
+        color: #ddd;
+        border-radius: 4px;
+        padding: 4px 10px;
+        margin-right: 4px;
+        cursor: pointer;
+        font: inherit;
+      }
+      .review-bar .tabs button.on {
+        background: #f2f2f2;
+        color: #1b1b1f;
+      }
+      .review-bar .caption {
+        flex: 1;
+        font-size: 13px;
+        color: #ccc;
+      }
+      .review-bar .reset {
+        background: none;
+        border: 0;
+        color: #aaa;
+        cursor: pointer;
+        font: inherit;
+      }
+      .dates {
+        white-space: nowrap;
+      }
+      .stage {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+      }
+      /* Type */
+      h1 {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: var(--navy-ink);
+        margin: 0 0 6px;
+      }
+      h2 {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--navy-ink);
+        margin: 0;
+      }
+      .sub {
+        color: var(--slate);
+      }
+      .small {
+        font-size: 12px;
+      }
+      p {
+        margin: 0 0 10px;
+        line-height: 1.45;
+      }
+      /* Buttons and fields */
+      .btn {
+        font: inherit;
+        border-radius: 4px;
+        padding: 5px 10px;
+        cursor: pointer;
+        border: 1px solid var(--mist);
+        background: var(--white);
+        color: var(--navy-ink);
+        white-space: nowrap;
+      }
+      .btn.primary {
+        background: var(--purple);
+        border-color: var(--purple);
+        color: #fff;
+        transition: box-shadow 0.25s;
+      }
+      .btn.primary:hover:not(:disabled) {
+        background: var(--purple-hover);
+        border-color: var(--purple-hover);
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn.bare {
+        border-color: transparent;
+        background: none;
+      }
+      .btn.bare:hover {
+        background: var(--frost);
+      }
+      .link {
+        color: var(--blue);
+        cursor: pointer;
+        background: none;
+        border: 0;
+        font: inherit;
+        padding: 0;
+        text-decoration: underline;
+      }
+      input[type='text'],
+      select {
+        font: inherit;
+        color: var(--ink);
+        background: var(--white);
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        padding: 5px;
+        width: 100%;
+      }
+      input[type='text']:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--purple);
+      }
+      .fields {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .fields label,
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        color: var(--slate);
+        font-size: 12px;
+      }
+      .fields .check {
+        flex-direction: row;
+        align-items: center;
+        grid-column: 1 / -1;
+        color: var(--ink);
+        font-size: 13px;
+      }
+      /* Surfaces */
+      .panel {
+        background: var(--white);
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        align-items: center;
+      }
+      .actions .spacer {
+        flex: 1;
+      }
+      /* Files */
+      .file {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 8px;
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        margin-bottom: 6px;
+      }
+      .fmt {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--slate);
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        padding: 2px 4px;
+      }
+      .file .fname {
+        color: var(--navy-ink);
+      }
+      .file .fnote {
+        color: var(--slate);
+        font-size: 12px;
+      }
+      .file .grow {
+        flex: 1;
+      }
+      .slot {
+        border: 1px dashed #c4cfdb;
+        border-radius: 4px;
+        padding: 10px;
+        color: var(--slate);
+        text-align: center;
+      }
+      /* Balance question */
+      .balq {
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+      }
+      .balq.needs {
+        border-color: var(--gold);
+        background: var(--warning-bg);
+      }
+      .balq .flag {
+        color: var(--gold);
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .balq .q {
+        color: var(--navy-ink);
+        font-weight: 500;
+        margin-bottom: 2px;
+      }
+      .balq .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 6px;
+      }
+      .balq input {
+        width: 140px;
+        text-align: right;
+        font-feature-settings: 'tnum', 'ss01', 'ss04';
+      }
+      .gold {
+        color: var(--gold);
+        font-weight: 500;
+      }
+      /* Money table */
+      table.money {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--white);
+      }
+      table.money th {
+        color: var(--slate);
+        font-weight: 400;
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--mist);
+      }
+      table.money td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--mist);
+        vertical-align: top;
+      }
+      table.money th.num {
+        text-align: right;
+      }
+      table.money tbody tr:hover {
+        background: var(--frost);
+      }
+      .notice {
+        background: var(--notice-bg);
+        border: 1px solid var(--notice-border);
+        border-radius: 4px;
+        padding: 10px 12px;
+        margin-bottom: 16px;
+        color: var(--navy-ink);
+      }
+      /* App shell */
+      .app {
+        display: flex;
+        height: 100%;
+      }
+      .sidebar {
+        width: 240px;
+        flex: none;
+        background: var(--navy-ink);
+        color: var(--sidebar-text);
+        padding: 16px 10px;
+      }
+      .sb-budget {
+        font-weight: 600;
+        font-size: 15px;
+        color: #fff;
+        margin: 0 8px 18px;
+      }
+      .sb-item,
+      .sb-acct {
+        padding: 6px 8px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .sb-item.on {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .sb-head {
+        margin: 18px 8px 6px;
+        font-size: 12px;
+        color: #9fb3c8;
+      }
+      .sb-acct.pending {
+        font-style: italic;
+        color: var(--slate);
+        cursor: help;
+      }
+      .sb-acct .need {
+        color: var(--gold);
+        font-style: italic;
+      }
+      .sb-none,
+      .sb-add {
+        padding: 6px 8px;
+        color: #9fb3c8;
+      }
+      .main {
+        flex: 1;
+        padding: 20px 24px;
+        overflow: auto;
+      }
+      /* Budget grid */
+      .month {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        max-width: 820px;
+        margin-bottom: 12px;
+      }
+      .tobudget {
+        text-align: center;
+        background: var(--white);
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        padding: 8px 18px;
+      }
+      .tobudget .num {
+        font-size: 20px;
+        font-weight: 600;
+        text-align: center;
+        color: var(--navy-ink);
+      }
+      .grid {
+        max-width: 820px;
+        border: 1px solid var(--mist);
+        border-radius: 6px 6px 0 0;
+        overflow: hidden;
+      }
+      .grid .group td {
+        background: var(--frost);
+        font-weight: 600;
+        color: var(--navy-ink);
+      }
+      .grid td:first-child {
+        padding-left: 24px;
+      }
+      .grid .group td:first-child {
+        padding-left: 10px;
+      }
+      .empty-offer {
+        max-width: 820px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+      }
+      .empty-offer div {
+        flex: 1;
+      }
+      /* Choice screen */
+      .choice {
+        max-width: 560px;
+        margin: 60px auto;
+      }
+      .choice .opt {
+        padding: 18px 20px;
+        margin-top: 12px;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+      .choice .opt div {
+        flex: 1;
+      }
+      /* A: guided steps */
+      .col {
+        max-width: 640px;
+        margin: 28px auto 40px;
+      }
+      .stepper {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 20px;
+        color: var(--slate);
+      }
+      .stepper span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .stepper b {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 1px solid #c4cfdb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .stepper .now {
+        color: var(--navy-ink);
+        font-weight: 600;
+      }
+      .stepper .now b {
+        background: var(--navy-ink);
+        border-color: var(--navy-ink);
+        color: #fff;
+      }
+      .card {
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+      .card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .derived {
+        color: var(--slate);
+        margin-top: 8px;
+      }
+      /* B: live preview */
+      .b-wrap {
+        display: flex;
+        gap: 24px;
+        padding: 20px;
+        min-height: 100%;
+        align-items: flex-start;
+      }
+      .b-form {
+        width: 440px;
+        flex: none;
+        padding: 16px;
+      }
+      .b-form .card {
+        padding: 12px 0;
+        margin: 0;
+        border-top: 1px solid var(--mist);
+      }
+      .b-form .fields {
+        grid-template-columns: 1fr 1fr;
+      }
+      .b-form .fields label:nth-child(2) {
+        grid-column: 1 / -1;
+        order: -1;
+      }
+      .b-prev {
+        flex: 1;
+        min-width: 0;
+      }
+      .mini {
+        display: flex;
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        overflow: hidden;
+        background: var(--white);
+      }
+      .mini .sidebar {
+        width: 230px;
+        padding: 14px 8px;
+      }
+      .mini .cards {
+        flex: 1;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .pcard {
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        padding: 10px 12px;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 3px 16px;
+        margin-top: 6px;
+      }
+      .kv span:nth-child(odd) {
+        color: var(--slate);
+      }
+      .b-foot {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 14px;
+      }
+      .b-foot .sub {
+        flex: 1;
+      }
+      /* C: files first */
+      .wide {
+        max-width: 880px;
+        margin: 28px auto 40px;
+      }
+      .drop {
+        height: 200px;
+        border: 2px dashed #c4cfdb;
+        border-radius: 6px;
+        background: var(--white);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .drop .big {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--navy-ink);
+      }
+      .drop.done {
+        height: 64px;
+        flex-direction: row;
+      }
+      .unassigned td {
+        background: var(--warning-bg);
+      }
+      .c-table input {
+        width: 110px;
+        text-align: right;
+        font-feature-settings: 'tnum', 'ss01', 'ss04';
+      }
+      /* D: panel in the budget */
+      .dpanel {
+        width: 360px;
+        flex: none;
+        background: var(--white);
+        border-left: 1px solid var(--mist);
+        display: flex;
+        flex-direction: column;
+      }
+      .dpanel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--mist);
+      }
+      .dpanel-body {
+        flex: 1;
+        overflow: auto;
+        padding: 12px 16px;
+      }
+      .dpanel-foot {
+        border-top: 1px solid var(--mist);
+        padding: 12px 16px;
+      }
+      .drow {
+        border: 1px solid var(--mist);
+        border-radius: 4px;
+        margin-bottom: 8px;
+      }
+      .drow-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+        width: 100%;
+        background: none;
+        border: 0;
+        font: inherit;
+        text-align: left;
+        color: inherit;
+      }
+      .drow-head:hover {
+        background: var(--frost);
+      }
+      .drow-head .grow {
+        flex: 1;
+      }
+      .drow-body {
+        padding: 4px 10px 10px;
+        border-top: 1px solid var(--mist);
+      }
+      .drow .fields {
+        grid-template-columns: 1fr 1fr;
+        margin-top: 8px;
+      }
+      .drow .fields label:nth-child(2) {
+        grid-column: 1 / -1;
+        order: -1;
+      }
+      .transfers {
+        padding: 12px 14px;
+        margin-bottom: 20px;
+      }
+      .dpanel .transfers,
+      .mini .transfers {
+        margin: 0;
+      }
+      .repeats {
+        margin-top: 8px;
+        max-height: 220px;
+        overflow: auto;
+      }
+      .repeats td {
+        padding: 3px 8px;
+      }
+      .reviewline {
+        background: var(--frost);
+        border-radius: 4px;
+        padding: 8px 10px;
+        margin-top: 8px;
+        line-height: 1.5;
+      }
+
+      /* E · Cards with a live review */
+      .e-col {
+        max-width: 720px;
+        margin: 28px auto 60px;
+        padding: 0 16px;
+      }
+      .e-col h1 {
+        margin-bottom: 4px;
+      }
+      .e-card {
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+      .e-state {
+        border: 1px solid var(--gold);
+        border-left-width: 4px;
+        border-radius: 4px;
+        background: var(--warning-bg);
+        padding: 10px 12px;
+        margin-top: 10px;
+        color: var(--ink);
+      }
+      .e-state .flag {
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .e-state .flag::before {
+        content: '⚠ ';
+        color: var(--gold);
+      }
+      .e-state .row,
+      .e-ok .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 6px;
+      }
+      .e-state input,
+      .e-ok input {
+        width: 140px;
+        text-align: right;
+        font-feature-settings: 'tnum', 'ss01', 'ss04';
+      }
+      .e-ok {
+        color: var(--slate);
+        margin-top: 8px;
+      }
+      .e-section {
+        margin: 24px 0 8px;
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+      }
+      .e-section h2 {
+        margin: 0;
+      }
+      .e-review td.num,
+      .e-review th.num {
+        white-space: nowrap;
+      }
+      .e-review tr.incomplete td {
+        color: var(--slate);
+      }
+      .e-foot {
+        background: var(--white, #fff);
+        border: 1px solid var(--mist);
+        border-radius: 6px;
+        padding: 12px 14px;
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .e-foot .reason {
+        flex: 1;
+        color: var(--ink);
+      }
+      .e-foot .reason .link {
+        margin-left: 4px;
+      }
+      .btn.primary[aria-disabled='true'] {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .e-modal-back {
+        position: fixed;
+        inset: 0;
+        background: rgba(16, 42, 67, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+      }
+      .e-modal {
+        background: #fff;
+        border-radius: 6px;
+        padding: 18px 20px;
+        width: 520px;
+        max-width: calc(100% - 32px);
+        box-shadow:
+          0 15px 30px 0 rgba(0, 0, 0, 0.11),
+          0 5px 15px 0 rgba(0, 0, 0, 0.08);
+      }
+      .e-modal .map {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 12px;
+        margin: 12px 0;
+      }
+      .e-modal select {
+        width: 100%;
+      }
+      @media (max-width: 730px) {
+        .e-review .hide-narrow {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="review-bar">
+      <div class="tabs" role="tablist">
+        <button data-d="A">A · Guided steps</button>
+        <button data-d="B">B · Live preview</button>
+        <button data-d="C">C · Files first</button>
+        <button data-d="D">D · Setup in the budget</button>
+        <button data-d="E">E · Cards + live review</button>
+      </div>
+      <div class="caption" id="caption"></div>
+      <button class="reset" id="reset">Reset</button>
+    </div>
+    <div class="stage" id="stage"></div>
+
+    <script>
+      // Sample data from the PRD scenarios. Uncategorized rows on the summary
+      // page are illustrative.
+      const SAMPLES = {
+        chk: {
+          bank: 'Chase',
+          name: 'Chase Checking ••4821',
+          type: 'Checking',
+          files: [
+            {
+              name: 'chase-checking-2026-03-27_2026-09-26.qfx',
+              fmt: 'QFX',
+              note: '212 transactions, Mar 27 to Sep 26 · balance 2,410.55 on Sep 26',
+            },
+            {
+              name: 'chase-checking-may-sep.qfx',
+              fmt: 'QFX',
+              note: 'Overlaps the file above · 14 repeats dropped',
+            },
+          ],
+          txns: 212,
+          from: 'Mar 27',
+          to: 'Sep 26',
+          toLong: 'September 26',
+          dups: 14,
+          fileBalance: 2410.55,
+          net: 567.35,
+          startDate: 'Mar 27',
+        },
+        sap: {
+          bank: 'Chase',
+          name: 'Chase Sapphire ••0937',
+          type: 'Credit card',
+          files: [
+            {
+              name: 'Chase0937_Activity.CSV',
+              fmt: 'CSV',
+              note: '274 transactions, Mar 30 to Sep 25 · columns mapped · no balance in file',
+            },
+          ],
+          txns: 274,
+          from: 'Mar 30',
+          to: 'Sep 25',
+          toLong: 'September 25',
+          dups: 0,
+          fileBalance: null,
+          net: -442.38,
+          startDate: 'Mar 30',
+        },
+        chime: {
+          bank: 'Chime',
+          name: 'Chime Checking',
+          type: 'Checking',
+          files: [],
+          txns: 0,
+          dups: 0,
+          fileBalance: null,
+          net: 0,
+          to: 'Sep 27',
+          startDate: 'Sep 27',
+          entered: '612.00',
+        },
+      };
+      const ORDER = ['chk', 'sap', 'chime'];
+      // Rows found in both Chase Checking files (illustrative).
+      const REPEATS = [
+        ['May 1', 'Acme Corp Payroll', 2184.62],
+        ['May 2', 'Parkview Apartments', -1450.0],
+        ['May 4', 'Kroger', -92.18],
+        ['May 5', 'Duke Energy', -118.4],
+        ['May 8', 'Venmo', -40.0],
+        ['May 11', 'Kroger', -76.54],
+        ['May 12', 'Comcast', -89.99],
+        ['May 15', 'Acme Corp Payroll', 2184.62],
+        ['May 16', 'Shell', -38.2],
+        ['May 18', 'Kroger', -104.33],
+        ['May 20', 'Netflix', -15.49],
+        ['May 22', 'ATM Withdrawal', -60.0],
+        ['May 25', 'Kroger', -81.07],
+        ['May 29', 'Acme Corp Payroll', 2184.62],
+      ];
+      // The one likely transfer pair: a card payment from checking.
+      const TRANSFER = [
+        ['Aug 3', 'chk', 'Payment to Chase card', -523.1],
+        ['Aug 4', 'sap', 'Payment Thank You', 523.1],
+      ];
+      const UNCATEGORIZED = [
+        ['Sep 26', 'chk', 'Kroger', -84.12],
+        ['Sep 25', 'sap', 'Shell', -46.3],
+        ['Sep 25', 'chk', 'Venmo', -40.0],
+        ['Sep 24', 'sap', 'Amazon', -32.99],
+        ['Sep 23', 'chk', 'Acme Corp Payroll', 2184.62],
+        ['Sep 22', 'sap', 'Chipotle', -18.45],
+        ['Sep 21', 'chk', 'Comcast', -89.99],
+        ['Sep 20', 'sap', 'Target', -61.27],
+      ];
+      const GROUPS = [
+        ['Usual Expenses', ['Food', 'General', 'Bills', 'Bills (Flexible)']],
+        ['Investments and Savings', ['Savings']],
+      ];
+      const INCOME = ['Income', 'Starting Balances'];
+
+      const $ = s => document.querySelector(s);
+      const esc = s =>
+        String(s).replace(
+          /[&<>"]/g,
+          c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
+        );
+      const fmt = n =>
+        (n < 0 ? '-' : '') +
+        Math.abs(n).toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      const money = n =>
+        `<span class="num ${n < 0 ? 'neg' : ''}">${fmt(n)}</span>`;
+      const parse = s => {
+        const n = parseFloat(String(s ?? '').replace(/[$,\s]/g, ''));
+        return Number.isFinite(n) ? n : null;
+      };
+
+      let dir = 'A';
+      let S;
+
+      function reset() {
+        const acc = {};
+        for (const id of ORDER)
+          acc[id] = { ...SAMPLES[id], entered: SAMPLES[id].entered ?? '' };
+        S = {
+          screen: 'choice',
+          step: 1,
+          acc,
+          added: dir === 'C' ? [] : ['chk'],
+          open: { chk: true },
+          dropped: false,
+          unassigned: true,
+          pickNote: '',
+          showRepeats: false,
+          transfer: null,
+          mapped: false,
+          modal: null,
+        };
+        render();
+      }
+
+      // Account math: the starting balance is the known balance minus the net
+      // of the imported transactions (PRD requirement 8).
+      // A card's balance is entered as the positive amount owed and stored
+      // as a negative (PRD requirement 8).
+      const entered = a => {
+        const n = parse(a.entered);
+        if (n === null) return null;
+        return a.type === 'Credit card' ? -Math.abs(n) : n;
+      };
+      const known = a => a.fileBalance ?? entered(a);
+      const complete = a => known(a) !== null;
+      const start = a => known(a) - a.net;
+      const list = () => S.added.map(id => ({ id, ...S.acc[id] }));
+      const allComplete = () => list().every(complete);
+      const totalTxns = () => list().reduce((n, a) => n + a.txns, 0);
+      const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+      const nextSample = () => ORDER.find(id => !S.added.includes(id));
+
+      function edit(id, key, value) {
+        S.acc[id][key] = value;
+        if (dir === 'B') renderPreview();
+        if (dir === 'D') $('#dside').outerHTML = sidebar(list(), true);
+      }
+      function setBal(id, value) {
+        S.acc[id].entered = value;
+        render();
+      }
+      function addAccount() {
+        const id = nextSample();
+        if (!id) return;
+        S.added.push(id);
+        S.open = { [id]: true };
+        render();
+      }
+      function removeAccount(id) {
+        S.added = S.added.filter(x => x !== id);
+        render();
+      }
+      function go(screen, extra = {}) {
+        Object.assign(S, { screen }, extra);
+        render();
+      }
+
+      /* ---------- Shared pieces ---------- */
+
+      function sidebar(accounts, pending = false, on = 'budget') {
+        const rows = accounts
+          .map(a => {
+            const bal = complete(a)
+              ? `<span class="num">${fmt(known(a))}</span>`
+              : `<span class="need">Needs a balance</span>`;
+            return `<div class="sb-acct ${pending ? 'pending' : ''}" ${pending ? 'title="Not created yet"' : ''}><span>${esc(a.name)}</span>${bal}</div>`;
+          })
+          .join('');
+        return `<nav class="sidebar" id="dside">
+          <div class="sb-budget">My Budget</div>
+          <div class="sb-item ${on === 'budget' ? 'on' : ''}">Budget</div>
+          <div class="sb-item">Reports</div>
+          <div class="sb-item">Schedules</div>
+          <div class="sb-head">Accounts</div>
+          ${rows || '<div class="sb-none">No accounts</div>'}
+          <div class="sb-add">+ Add account</div>
+        </nav>`;
+      }
+
+      function budgetGrid() {
+        const row = c =>
+          `<tr><td>${c}</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td></tr>`;
+        const groups = GROUPS.map(
+          ([g, cats]) =>
+            `<tr class="group"><td>${g}</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">0.00</td></tr>${cats.map(row).join('')}`,
+        ).join('');
+        const income = `<tr class="group"><td>Income</td><td></td><td class="num">0.00</td><td></td></tr>${INCOME.map(c => `<tr><td>${c}</td><td></td><td class="num">0.00</td><td></td></tr>`).join('')}`;
+        return `<div class="month"><h1 style="margin:0">September 2026</h1>
+          <div class="tobudget"><div class="sub small">To Budget</div><div class="num">0.00</div></div></div>
+          <div class="grid"><table class="money">
+            <thead><tr><th>Category</th><th class="num">Budgeted</th><th class="num">Spent</th><th class="num">Balance</th></tr></thead>
+            <tbody>${groups}</tbody>
+            <thead><tr><th>Income</th><th></th><th class="num">Received</th><th></th></tr></thead>
+            <tbody>${income}</tbody>
+          </table></div>`;
+      }
+
+      function fields(a, id) {
+        const types = ['Checking', 'Savings', 'Credit card', 'Other'];
+        return `<div class="fields">
+          <label>Bank<input type="text" value="${esc(a.bank)}" oninput="edit('${id}','bank',this.value)" /></label>
+          <label>Account name<input type="text" value="${esc(a.name)}" oninput="edit('${id}','name',this.value)" /></label>
+          <label>Type<select onchange="edit('${id}','type',this.value)">${types.map(t => `<option ${t === a.type ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          <label class="check"><input type="checkbox" checked /> On budget</label>
+        </div>`;
+      }
+
+      function files(a) {
+        const chips = a.files
+          .map(
+            f =>
+              `<div class="file"><span class="fmt">${f.fmt}</span><div class="grow"><div class="fname">${f.name}</div><div class="fnote">${f.note}</div></div><button class="btn bare" aria-label="Remove file">×</button></div>`,
+          )
+          .join('');
+        const none = a.files.length
+          ? ''
+          : `<p class="sub">No files. This account is created with the balance you enter and no history.</p>`;
+        return `${none}${chips}<div class="slot">Drop more files here or <button class="link">choose files</button></div>`;
+      }
+
+      function balanceQuestion(a, id) {
+        if (a.fileBalance !== null) return '';
+        const needs = !complete(a);
+        const card = a.type === 'Credit card';
+        const q = !a.files.length
+          ? 'What is the balance today?'
+          : card
+            ? `How much did you owe on ${a.toLong}?`
+            : `What was the balance on ${a.toLong}?`;
+        const help = !a.files.length
+          ? 'The account starts with this balance.'
+          : `Use the ${card ? 'amount' : 'balance'} on your statement or in your bank's app for that day. Pending transactions are not in your downloaded file.`;
+        const hint = card ? '<span class="sub small">owed</span>' : '';
+        return `<div class="balq ${needs ? 'needs' : ''}">
+          ${needs ? '<div class="flag">Needs a balance</div>' : ''}
+          <div class="q">${q}</div><div class="sub">${help}</div>
+          <div class="row"><input type="text" aria-label="${q}" value="${esc(a.entered)}" placeholder="0.00" onchange="setBal('${id}',this.value)" />${hint}</div>
+        </div>`;
+      }
+
+      function bal(a, n) {
+        if (a.type === 'Credit card' && n < 0)
+          return `<span class="num">${fmt(-n)} owed</span>`;
+        return money(n);
+      }
+
+      function repeatsLink(a) {
+        if (!a.dups) return '';
+        return `<button class="link" aria-expanded="${S.showRepeats}" onclick="S.showRepeats=!S.showRepeats;render()">${a.dups} repeats dropped</button>`;
+      }
+      function repeatsTable(a) {
+        if (!a.dups || !S.showRepeats) return '';
+        const rows = REPEATS.map(
+          ([d, p, n]) =>
+            `<tr><td>${d}</td><td>${p}</td><td class="num">${money(n)}</td></tr>`,
+        ).join('');
+        return `<div class="repeats"><div class="sub small">In both ${esc(a.name)} files, imported once:</div>
+          <table class="money"><tbody>${rows}</tbody></table></div>`;
+      }
+
+      function transfers() {
+        if (!S.added.includes('chk') || !S.added.includes('sap')) return '';
+        const rows = TRANSFER.map(
+          ([d, id, p, n]) =>
+            `<tr><td>${d}</td><td>${esc(S.acc[id].name)}</td><td>${p}</td><td class="num">${money(n)}</td></tr>`,
+        ).join('');
+        const decided = {
+          confirmed: 'Will be imported as a transfer between the two accounts.',
+          separate: 'Will be imported as two ordinary transactions.',
+        }[S.transfer];
+        const choice = decided
+          ? `<span class="sub">${decided}</span> <button class="link" onclick="S.transfer=null;render()">Change</button>`
+          : `<button class="btn" onclick="S.transfer='confirmed';render()">Confirm</button>
+             <button class="btn" onclick="S.transfer='separate';render()">Keep separate</button>`;
+        return `<div class="panel transfers"><h2>Likely transfers</h2>
+          <p class="sub">The same amount leaving one of your accounts and arriving in another. A confirmed pair becomes a transfer, so it is not counted as spending and income.</p>
+          <table class="money"><tbody>${rows}</tbody></table>
+          <div class="actions" style="justify-content:flex-start;margin-top:8px">${choice}</div></div>`;
+      }
+
+      function derived(a) {
+        if (!complete(a)) return '';
+        if (!a.files.length)
+          return `Created with a balance of ${bal(a, known(a))} on ${a.startDate}.`;
+        return `Starting balance ${bal(a, start(a))} on ${a.startDate}, so the account ends at ${bal(a, known(a))} on ${a.to}.`;
+      }
+
+      function summaryLine() {
+        return `Created ${plural(S.added.length, 'account')} and ${plural(totalTxns(), 'transaction')}. They are uncategorized; start with the ones below. Past months will look overspent because nothing was budgeted in them.`;
+      }
+
+      /* ---------- Screens shared by every direction ---------- */
+
+      function renderChoice() {
+        caption(
+          'Shared first step after Start budgeting. Every direction starts here.',
+        );
+        return `<div class="choice">
+          <div class="sub">New budget: My Budget</div>
+          <h1 style="font-size:30px;font-weight:600;letter-spacing:0">How do you want to start?</h1>
+          <div class="panel opt"><div><h2>Set up from bank files</h2>
+            <p class="sub" style="margin:4px 0 0">Add your accounts and the files you downloaded from your banks. Nothing is created until you confirm.</p></div>
+            <button class="btn primary" onclick="go('flow')">Set up from bank files</button></div>
+          <div class="panel opt"><div><h2>Start with an empty budget</h2>
+            <p class="sub" style="margin:4px 0 0">Add accounts yourself. You can still set up from bank files later.</p></div>
+            <button class="btn" onclick="go('empty')">Start empty</button></div>
+        </div>`;
+      }
+
+      function renderEmpty() {
+        caption(
+          "Today's empty budget, unchanged, with the flow offered again (PRD requirement 2).",
+        );
+        return `<div class="app">${sidebar([])}<main class="main">
+          <div class="panel empty-offer"><div><h2>No accounts yet</h2>
+            <div class="sub">Set up this budget from the files you downloaded from your banks.</div></div>
+            <button class="btn primary" onclick="reset();go('flow')">Set up from bank files</button></div>
+          ${budgetGrid()}</main></div>`;
+      }
+
+      function renderDone() {
+        caption(
+          'After Create: every direction lands on the uncategorized list with the summary.',
+        );
+        const rows = UNCATEGORIZED.filter(([, id]) => S.added.includes(id))
+          .map(
+            ([d, id, payee, amt]) =>
+              `<tr><td>${d}</td><td>${esc(S.acc[id].name)}</td><td>${payee}</td><td class="sub">Categorize</td><td class="num">${money(amt)}</td></tr>`,
+          )
+          .join('');
+        return `<div class="app">${sidebar(list(), false, 'none')}<main class="main">
+          <h1>Uncategorized transactions</h1>
+          <div class="notice" style="max-width:820px">${summaryLine()}</div>
+          <div class="grid"><table class="money">
+            <thead><tr><th>Date</th><th>Account</th><th>Payee</th><th>Category</th><th class="num">Amount</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5" class="sub">No transactions were imported.</td></tr>'}</tbody></table></div>
+          <p class="sub" style="margin-top:8px">Showing ${UNCATEGORIZED.filter(([, id]) => S.added.includes(id)).length} of ${totalTxns()}</p>
+        </main></div>`;
+      }
+
+      /* ---------- A · Guided steps ---------- */
+
+      function renderA() {
+        const steps = ['Accounts', 'Review', 'Done']
+          .map(
+            (s, i) =>
+              `<span class="${i + 1 === S.step ? 'now' : ''}"><b>${i + 1 < S.step ? '✓' : i + 1}</b>${s}</span>`,
+          )
+          .join('');
+        const head = `<div class="stepper">${steps}</div>`;
+        if (S.step === 1) {
+          caption(
+            'Step 1. Add Chase Sapphire and Chime with "Add another account". Type 1126.48 as the Sapphire amount owed and press Enter.',
+          );
+          const cards = list()
+            .map(
+              a => `<div class="panel card">
+                <div class="card-head"><h2>${esc(a.name)}</h2>
+                  <button class="btn bare" onclick="removeAccount('${a.id}')">Remove</button></div>
+                ${fields(a, a.id)}${files(a)}${balanceQuestion(a, a.id)}
+                <div class="derived">${derived(a)}</div></div>`,
+            )
+            .join('');
+          const missing = list().filter(a => !complete(a)).length;
+          return `<div class="col">${head}<h1>Your accounts</h1>
+            <p class="sub">Add each bank account, then the files you downloaded for it.</p>
+            ${cards}
+            ${nextSample() ? `<button class="btn" onclick="addAccount()" style="margin-bottom:20px">+ Add another account</button>` : ''}
+            <div class="actions">${missing ? `<span class="gold">${plural(missing, 'account')} needs a balance</span>` : ''}
+              <span class="spacer"></span>
+              <button class="btn" onclick="go('choice')">Cancel</button>
+              <button class="btn primary" ${missing || !S.added.length ? 'disabled' : ''} onclick="S.step=2;render()">Next: Review</button></div></div>`;
+        }
+        if (S.step === 2) {
+          caption(
+            'Step 2. Review is a compact table. Nothing is written until Create.',
+          );
+          const rows = list()
+            .map(
+              a => `<tr><td><div>${esc(a.name)}</div><div class="sub small">${esc(a.bank)} · ${esc(a.type)}</div></td>
+                <td class="num">${a.txns}</td>
+                <td class="dates">${a.files.length ? `${a.from} – ${a.to}` : '<span class="sub">No files</span>'}</td>
+                <td class="num">${repeatsLink(a) || 0}</td>
+                <td class="num">${bal(a, start(a))}<div class="sub small">${a.startDate}</div></td>
+                <td class="num">${bal(a, known(a))}</td></tr>
+                ${repeatsTable(a) ? `<tr><td colspan="6">${repeatsTable(a)}</td></tr>` : ''}`,
+            )
+            .join('');
+          return `<div class="col">${head}<h1>Review</h1>
+            <p class="sub">This is what will be created. You can go back and change anything.</p>
+            <div class="panel" style="margin-bottom:20px"><table class="money">
+              <thead><tr><th>Account</th><th class="num">Transactions</th><th>Dates</th><th class="num">Repeats dropped</th><th class="num">Starting balance</th><th class="num">Ending balance</th></tr></thead>
+              <tbody>${rows}</tbody></table></div>
+            ${transfers()}
+            <div class="actions"><span class="sub">${plural(S.added.length, 'account')}, ${plural(totalTxns(), 'transaction')}</span><span class="spacer"></span>
+              <button class="btn" onclick="S.step=1;render()">Back</button>
+              <button class="btn primary" onclick="S.step=3;render()">Create</button></div></div>`;
+        }
+        caption('Step 3. Done, then on to the uncategorized list.');
+        return `<div class="col">${head}<h1>Your budget is set up</h1>
+          <div class="notice">${summaryLine()}</div>
+          <div class="actions"><button class="btn primary" onclick="go('done')">Show uncategorized transactions</button></div></div>`;
+      }
+
+      /* ---------- B · Live preview ---------- */
+
+      function previewHTML() {
+        const cards = list()
+          .map(a => {
+            const body = complete(a)
+              ? `<div class="kv">
+                  <span>Transactions</span><span class="num">${a.files.length ? `${a.txns} · ${a.from} – ${a.to}` : 'None'}</span>
+                  ${a.dups ? `<span>Repeats</span>${repeatsLink(a)}` : ''}
+                  <span>Starting balance, ${a.startDate}</span>${bal(a, start(a))}
+                  <span>Ending balance, ${a.to}</span>${bal(a, known(a))}</div>${repeatsTable(a)}`
+              : `<div class="kv"><span>Transactions</span><span class="num">${a.txns} · ${a.from} – ${a.to}</span></div>`;
+            return `<div class="pcard"><h2>${esc(a.name)}</h2><div class="sub small">${esc(a.bank)} · ${esc(a.type)}</div>
+              ${body}${balanceQuestion(a, a.id)}</div>`;
+          })
+          .join('');
+        const ready = allComplete() && S.added.length;
+        const waiting = list().find(a => !complete(a));
+        return `<div class="mini">${sidebar(list(), false, 'none')}<div class="cards">${cards || '<p class="sub">Accounts you add appear here.</p>'}${transfers()}</div></div>
+          <div class="b-foot"><span class="sub">${waiting ? `Enter a balance for ${esc(waiting.name)} to continue.` : `${plural(S.added.length, 'account')} and ${plural(totalTxns(), 'transaction')}. Nothing is created until you click Create.`}</span>
+            <button class="btn primary" ${ready ? '' : 'disabled'} onclick="go('done')">Create</button></div>`;
+      }
+      function renderPreview() {
+        $('#bprev').innerHTML = previewHTML();
+      }
+
+      function renderB() {
+        caption(
+          'The preview forms as you add accounts. Fill the gold balance in place (1126.48, Enter).',
+        );
+        const cards = list()
+          .map(
+            a => `<div class="card"><div class="card-head"><h2>${esc(a.name)}</h2>
+              <button class="btn bare" onclick="removeAccount('${a.id}')">Remove</button></div>
+              ${fields(a, a.id)}${files(a)}</div>`,
+          )
+          .join('');
+        return `<div class="b-wrap">
+          <section class="panel b-form"><h1>Your accounts</h1>
+            <p class="sub">Add each bank account and the files you downloaded for it.</p>
+            ${cards}
+            ${nextSample() ? `<button class="btn" onclick="addAccount()" style="margin-top:12px">+ Add another account</button>` : ''}
+            <div class="actions" style="margin-top:16px"><button class="btn" onclick="go('choice')">Cancel</button></div></section>
+          <section class="b-prev"><h2 style="margin-bottom:8px">What will be created</h2><div id="bprev">${previewHTML()}</div></section>
+        </div>`;
+      }
+
+      /* ---------- C · Files first ---------- */
+
+      function drop() {
+        S.dropped = true;
+        S.added = ['chk'];
+        S.unassigned = true;
+        render();
+      }
+      function assign(value) {
+        if (value === 'new') {
+          S.unassigned = false;
+          S.added.push('sap');
+          S.pickNote = '';
+        } else if (value === 'chk') {
+          S.pickNote =
+            'Prototype follows the New account path; in the build the file would join Chase Checking ••4821.';
+        }
+        render();
+      }
+
+      function renderC() {
+        if (!S.dropped) {
+          caption('Opens on one drop zone. Use the button to simulate a drop.');
+          return `<div class="wide"><h1>Set up from bank files</h1>
+            <p class="sub">Actual reads each file and groups it into accounts. Nothing is created until you confirm.</p>
+            <div class="drop"><div class="big">Drop the files you downloaded from your banks.</div>
+              <div class="sub">OFX, QFX, QIF, CSV, TSV or CAMT.053 · <button class="link">choose files</button></div>
+              <button class="btn" onclick="drop()">Simulate dropping 3 files</button></div>
+            <div class="actions"><button class="btn" onclick="go('choice')">Cancel</button></div></div>`;
+        }
+        caption(
+          S.pickNote ||
+            'The CSV has no account number, so it waits under "Which account?". Pick New account, then add Chime from the link.',
+        );
+        const row = a => {
+          const fileNames = a.files.map(f => f.name).join('<br>');
+          const end =
+            a.fileBalance !== null
+              ? bal(a, known(a))
+              : `${complete(a) ? '' : '<div class="gold small">Needs a balance</div>'}<input type="text" aria-label="Balance for ${esc(a.name)}" value="${esc(a.entered)}" placeholder="0.00" onchange="setBal('${a.id}',this.value)" />`;
+          return `<tr><td><div>${esc(a.name)}</div><div class="sub small">${esc(a.bank)} · ${esc(a.type)}${a.id === 'chk' ? ' · from the QFX' : ''}</div></td>
+            <td class="small">${fileNames || '<span class="sub">No file</span>'}</td>
+            <td class="num">${a.txns}${a.dups ? `<div class="small">${repeatsLink(a)}</div>` : ''}</td>
+            <td class="dates">${a.files.length ? `${a.from} – ${a.to}` : ''}</td>
+            <td class="num">${complete(a) ? `${bal(a, start(a))}<div class="sub small">${a.startDate}</div>` : '<span class="sub">After balance</span>'}</td>
+            <td class="num">${end}${a.files.length && a.fileBalance === null ? `<div class="sub small">${a.type === 'Credit card' ? 'owed' : ''} as of ${a.to}</div>` : ''}</td></tr>
+            ${repeatsTable(a) ? `<tr><td colspan="6">${repeatsTable(a)}</td></tr>` : ''}`;
+        };
+        const unassigned = S.unassigned
+          ? `<tr class="unassigned"><td colspan="3"><div class="gold">Unassigned file</div>
+              <div>Chase0937_Activity.CSV</div><div class="sub small">274 transactions, Mar 30 to Sep 25 · no account number in the file</div></td>
+              <td colspan="3"><label class="field">Which account?<select onchange="assign(this.value)">
+                <option value="">Choose an account</option><option value="chk">Chase Checking ••4821</option><option value="new">New account</option></select></label></td></tr>`
+          : '';
+        const blocked = S.unassigned || !allComplete();
+        return `<div class="wide"><h1>Set up from bank files</h1>
+          <p class="sub">Check the accounts Actual found. The table is what will be created.</p>
+          <div class="drop done"><span class="big">Drop more files</span><span class="sub">or <button class="link">choose files</button></span></div>
+          <div class="panel" style="margin-bottom:10px"><table class="money c-table">
+            <thead><tr><th>Account</th><th>Files</th><th class="num">Transactions</th><th>Dates</th><th class="num">Starting balance</th><th class="num">Ending balance</th></tr></thead>
+            <tbody>${list().map(row).join('')}${unassigned}</tbody></table></div>
+          ${transfers()}
+          ${S.added.includes('chime') ? '' : `<button class="link" onclick="S.added.push('chime');render()">Add an account with no file</button>`}
+          <div class="actions" style="margin-top:20px"><span class="sub">${blocked ? 'Assign every file and enter the missing balances to continue.' : `${plural(S.added.length, 'account')}, ${plural(totalTxns(), 'transaction')}`}</span>
+            <span class="spacer"></span><button class="btn" onclick="go('choice')">Cancel</button>
+            <button class="btn primary" ${blocked ? 'disabled' : ''} onclick="go('done')">Create</button></div></div>`;
+      }
+
+      /* ---------- D · Setup in the budget ---------- */
+
+      function toggle(id) {
+        S.open = { [id]: !S.open[id] };
+        render();
+      }
+
+      function renderD() {
+        caption(
+          'Pending accounts are italic Slate in the sidebar (hover: "Not created yet"). Closing the panel discards them.',
+        );
+        const rows = list()
+          .map(a => {
+            const status = complete(a)
+              ? `<span class="sub small">${a.files.length ? plural(a.txns, 'transaction') : 'No files'}</span>`
+              : '<span class="gold small">Needs a balance</span>';
+            const review = complete(a)
+              ? `<div class="reviewline">${a.files.length ? `${a.txns} transactions, ${a.from} to ${a.to}.${a.dups ? ` ${repeatsLink(a)}.` : ''} ` : ''}Starts at ${bal(a, start(a))} on ${a.startDate} and ends at ${bal(a, known(a))}.${repeatsTable(a)}</div>`
+              : '';
+            const body = S.open[a.id]
+              ? `<div class="drow-body">${fields(a, a.id)}${files(a)}${balanceQuestion(a, a.id)}${review}</div>`
+              : '';
+            return `<div class="drow"><button class="drow-head" onclick="toggle('${a.id}')" aria-expanded="${!!S.open[a.id]}">
+              <span>${S.open[a.id] ? '▾' : '▸'}</span><span class="grow"><div>${esc(a.name)}</div><div class="sub small">${esc(a.bank)} · ${esc(a.type)} · ${plural(a.files.length, 'file')}</div></span>${status}</button>${body}</div>`;
+          })
+          .join('');
+        const ready = allComplete() && S.added.length;
+        return `<div class="app">${sidebar(list(), true)}
+          <main class="main">${budgetGrid()}</main>
+          <aside class="dpanel"><div class="dpanel-head"><h2>Set up from bank files</h2>
+              <button class="btn bare" aria-label="Close and discard" title="Close and discard" onclick="go('empty')">×</button></div>
+            <div class="dpanel-body"><p class="sub">Accounts in the sidebar are not created until you click Create.</p>
+              ${rows}
+              ${nextSample() ? `<button class="btn" onclick="addAccount()" style="margin-bottom:12px">+ Add account</button>` : ''}
+              ${transfers()}</div>
+            <div class="dpanel-foot actions"><span class="sub">${plural(S.added.length, 'account')}, ${plural(totalTxns(), 'transaction')}</span><span class="spacer"></span>
+              <button class="btn primary" ${ready ? '' : 'disabled'} onclick="go('done')">Create</button></div></aside></div>`;
+      }
+
+      /* ---------- E · Cards with a live review (UX review recommendation) ---------- */
+
+      // E keeps focus where it was across re-renders (review finding 2) and
+      // announces changes through one polite live region (findings 2 and 3).
+      function announce(text) {
+        const r = $('#e-live');
+        if (r) r.textContent = text;
+      }
+      function renderKeepFocus(focusId) {
+        render();
+        const el = focusId && document.getElementById(focusId);
+        if (el) el.focus();
+      }
+      function eSetBal(id, value) {
+        S.acc[id].entered = value;
+        const a = { id, ...S.acc[id] };
+        renderKeepFocus(`e-bal-${id}`);
+        if (complete(a))
+          announce(
+            `${a.name}: starting balance ${a.files.length ? eBal(a, start(a)) : eBal(a, known(a))} on ${a.startDate}.`,
+          );
+      }
+      function eBal(a, n) {
+        if (a.type === 'Credit card') return `${fmt(Math.abs(n))} owed`;
+        return fmt(n);
+      }
+      function eMoney(a, n) {
+        return `<span class="num">${eBal(a, n)}</span>`;
+      }
+      const eMapped = a => !a.files.some(f => f.fmt === 'CSV') || S.mapped;
+      const eReady = a => complete(a) && eMapped(a);
+
+      function eFiles(a) {
+        const chips = a.files
+          .map(f => {
+            const needsCols = f.fmt === 'CSV' && !S.mapped;
+            const note = needsCols
+              ? '274 transactions found · columns not mapped yet'
+              : f.note.replace('14 repeats dropped', '14 duplicates skipped');
+            return `<div class="file"><span class="fmt">${f.fmt}</span><div class="grow"><div class="fname">${f.name}</div><div class="fnote">${note}</div></div><button class="btn bare" aria-label="Remove ${esc(f.name)}">×</button></div>`;
+          })
+          .join('');
+        const none = a.files.length
+          ? ''
+          : `<p class="sub">No files. This account is created with the balance you enter and no history.</p>`;
+        return `${none}${chips}<div class="slot">Drop more files here or <button class="link">choose files</button></div>`;
+      }
+
+      function eStates(a) {
+        let out = '';
+        if (!eMapped(a))
+          out += `<div class="e-state" id="e-cols-${a.id}"><div class="flag">Needs columns</div>
+            <div>Tell Actual which columns in Chase0937_Activity.CSV hold the date, description and amount.</div>
+            <div class="row"><button class="btn" id="e-map-${a.id}" onclick="S.modal='${a.id}';render();document.getElementById('e-modal-first').focus()">Map columns</button></div></div>`;
+        if (a.fileBalance === null && eMapped(a)) {
+          const card = a.type === 'Credit card';
+          const q = !a.files.length
+            ? 'What is the balance today?'
+            : card
+              ? `How much did you owe on ${a.toLong}?`
+              : `What was the balance on ${a.toLong}?`;
+          const help = !a.files.length
+            ? 'The account starts with this balance.'
+            : `Use the ${card ? 'amount' : 'balance'} on your statement or in your bank's app for that day. Pending transactions are not in your downloaded file.`;
+          const input = `<div class="row"><input type="text" id="e-bal-${a.id}" aria-label="${q}" value="${esc(a.entered)}" placeholder="0.00" onchange="eSetBal('${a.id}',this.value)" />${card ? '<span class="sub small">owed</span>' : ''}</div>`;
+          out += complete(a)
+            ? `<div class="e-ok"><div class="sub small">${q}</div>${input}</div>`
+            : `<div class="e-state" id="e-balq-${a.id}"><div class="flag">Needs a balance</div><div style="font-weight:500">${q}</div><div class="sub">${help}</div>${input}</div>`;
+        }
+        return out;
+      }
+
+      function eReviewRow(a) {
+        const ready = eReady(a);
+        const state = !eMapped(a) ? 'Needs columns' : 'Needs a balance';
+        return `<tr class="${ready ? '' : 'incomplete'}"><td><div>${esc(a.name)}</div><div class="sub small">${esc(a.bank)} · ${esc(a.type)}</div></td>
+          <td class="num">${eMapped(a) ? a.txns : '<span class="sub">?</span>'}</td>
+          <td class="dates hide-narrow">${a.files.length ? `${a.from} to ${a.to}` : '<span class="sub">No files</span>'}</td>
+          <td class="num hide-narrow">${a.dups ? `<button class="link" aria-expanded="${S.showRepeats}" onclick="S.showRepeats=!S.showRepeats;render()">${a.dups} skipped</button>` : '0'}</td>
+          <td class="num">${ready ? `${eMoney(a, a.files.length ? start(a) : known(a))}<div class="sub small">${a.startDate}</div>` : `<span class="sub">${state}</span>`}</td>
+          <td class="num">${ready ? eMoney(a, known(a)) : ''}</td></tr>
+          ${a.dups && S.showRepeats ? `<tr><td colspan="6">${repeatsTable(a).replace('imported once', 'imported once, so they are skipped the second time')}</td></tr>` : ''}`;
+      }
+
+      function eTransfers() {
+        if (!S.added.includes('chk') || !S.added.includes('sap')) return '';
+        const [out, inn] = TRANSFER;
+        const decided = {
+          confirmed: 'Will be imported as a transfer between the two accounts.',
+          separate: 'Will be imported as two ordinary transactions.',
+        }[S.transfer];
+        const label = `523.10 from ${S.acc.chk.name} to ${S.acc.sap.name}, Aug 3`;
+        const choice = decided
+          ? `<span class="sub">${decided}</span> <button class="link" onclick="S.transfer=null;renderKeepFocus()">Change</button>`
+          : `<button class="btn" onclick="S.transfer='confirmed';render();announce('Transfer confirmed')">Confirm<span class="sr-only"> transfer of ${label}</span></button>
+             <button class="btn" onclick="S.transfer='separate';render();announce('Kept as two transactions')">Keep separate<span class="sr-only">: ${label}</span></button>`;
+        return `<div class="e-section"><h2>Likely transfers</h2><span class="sub small">1 pair</span></div>
+          <div class="panel transfers"><p class="sub" style="margin-top:0">The same amount leaving one of your accounts and arriving in another. A confirmed pair becomes a transfer, so it is not counted as spending and income.</p>
+          <table class="money"><thead><tr><th>Amount</th><th>From</th><th>To</th><th>Dates</th></tr></thead>
+            <tbody><tr><td class="num">${fmt(-out[3])}</td><td>${esc(S.acc.chk.name)}<div class="sub small">${out[2]}</div></td><td>${esc(S.acc.sap.name)}<div class="sub small">${inn[2]}</div></td><td>${out[0]} and ${inn[0]}</td></tr></tbody></table>
+          <div class="actions" style="justify-content:flex-start;margin-top:8px">${choice}</div></div>`;
+      }
+
+      function eModal() {
+        if (!S.modal) return '';
+        const cols = [
+          'Transaction Date',
+          'Post Date',
+          'Description',
+          'Category',
+          'Type',
+          'Amount',
+          'Memo',
+        ];
+        const sel = (label, pick, first) =>
+          `<label>${label}<select ${first ? 'id="e-modal-first"' : ''}>${cols.map(c => `<option ${c === pick ? 'selected' : ''}>${c}</option>`).join('')}</select></label>`;
+        return `<div class="e-modal-back"><div class="e-modal" role="dialog" aria-modal="true" aria-labelledby="e-modal-t">
+          <h2 id="e-modal-t">Map columns: Chase0937_Activity.CSV</h2>
+          <p class="sub" style="margin:4px 0 0">This is the existing column mapping from the import dialog, opened from the flow. Columns are guessed from the header row.</p>
+          <div class="map">${sel('Date', 'Transaction Date', true)}${sel('Payee', 'Description')}${sel('Notes', 'Memo')}${sel('Amount', 'Amount')}</div>
+          <label class="check"><input type="checkbox" /> Flip amount</label>
+          <div class="actions" style="margin-top:12px"><span class="spacer"></span>
+            <button class="btn" onclick="S.modal=null;renderKeepFocus('e-map-sap')">Cancel</button>
+            <button class="btn primary" onclick="S.modal=null;S.mapped=true;renderKeepFocus('e-bal-sap');announce('Columns mapped. 274 transactions, March 30 to September 25. Needs a balance.')">Apply</button></div>
+        </div></div>`;
+      }
+
+      function eCreate() {
+        const blocked = list().filter(a => !eReady(a));
+        if (blocked.length) {
+          announce(
+            `Create is not available yet: ${blocked.map(a => a.name).join(', ')}`,
+          );
+          const a = blocked[0];
+          const target = document.getElementById(
+            eMapped(a) ? `e-bal-${a.id}` : `e-map-${a.id}`,
+          );
+          if (target) target.focus();
+          return;
+        }
+        go('done');
+      }
+
+      function renderE() {
+        caption(
+          S.mapped
+            ? 'Type 1126.48 as the Sapphire amount owed and press Enter or Tab. Focus stays put and the review below updates.'
+            : 'Add Chase Sapphire and Chime with "Add another account". The Sapphire CSV needs its columns mapped first. Dropping a QFX anywhere would add a filled-in card.',
+        );
+        const cards = list()
+          .map(
+            a => `<div class="panel e-card" id="e-card-${a.id}">
+              <div class="card-head"><h2>${esc(a.name)}</h2>
+                <button class="btn bare" onclick="removeAccount('${a.id}')">Remove<span class="sr-only"> ${esc(a.name)}</span></button></div>
+              ${fields(a, a.id)}${eFiles(a)}${eStates(a)}</div>`,
+          )
+          .join('');
+        const blocked = list().filter(a => !eReady(a));
+        const unanswered =
+          S.added.includes('chk') && S.added.includes('sap') && !S.transfer;
+        const reason = blocked.length
+          ? `Before you can create: ${blocked
+              .map(
+                a =>
+                  `<button class="link" onclick="document.getElementById('${eMapped(a) ? `e-bal-${a.id}` : `e-map-${a.id}`}').focus()">${esc(a.name)}</button> ${eMapped(a) ? 'needs a balance' : 'needs columns'}`,
+              )
+              .join(', ')}.`
+          : `${plural(S.added.length, 'account')} and ${plural(
+              list().reduce((n, a) => n + a.txns, 0),
+              'transaction',
+            )} will be created.${unanswered ? ' 1 likely transfer not answered: it will be imported as two transactions.' : ''}`;
+        return `<div class="e-col">
+          <div id="e-live" class="sr-only" role="status" aria-live="polite"></div>
+          <h1>Your accounts</h1>
+          <p class="sub">Add each bank account, then the files you downloaded for it. Nothing is created until you click Create.</p>
+          ${cards}
+          ${nextSample() ? `<button class="btn" onclick="addAccount()">+ Add another account</button>` : ''}
+          <div class="e-section"><h2>What will be created</h2><span class="sub small">Updates as you edit</span></div>
+          <div class="panel"><table class="money e-review">
+            <thead><tr><th>Account</th><th class="num">Transactions</th><th class="hide-narrow">Dates</th><th class="num hide-narrow">Duplicates</th><th class="num">Starting balance</th><th class="num">Ending balance</th></tr></thead>
+            <tbody>${list().map(eReviewRow).join('')}</tbody></table></div>
+          ${eTransfers()}
+          <div class="e-foot"><span class="reason" id="e-reason">${reason}</span>
+            <button class="btn" onclick="go('choice')">Cancel</button>
+            <button class="btn primary" aria-disabled="${blocked.length ? 'true' : 'false'}" aria-describedby="e-reason" onclick="eCreate()">Create</button></div>
+        </div>${eModal()}`;
+      }
+
+      /* ---------- Frame ---------- */
+
+      function caption(text) {
+        $('#caption').textContent = text;
+      }
+
+      function render() {
+        const flow = {
+          A: renderA,
+          B: renderB,
+          C: renderC,
+          D: renderD,
+          E: renderE,
+        }[dir];
+        const view =
+          S.screen === 'choice'
+            ? renderChoice
+            : S.screen === 'empty'
+              ? renderEmpty
+              : S.screen === 'done'
+                ? renderDone
+                : flow;
+        $('#stage').innerHTML = view();
+        document
+          .querySelectorAll('.tabs button')
+          .forEach(b => b.classList.toggle('on', b.dataset.d === dir));
+      }
+
+      function setDirection(d) {
+        dir = d;
+        const url = new URL(location.href);
+        url.searchParams.set('d', d);
+        history.replaceState(null, '', url);
+        reset();
+      }
+
+      document
+        .querySelectorAll('.tabs button')
+        .forEach(b =>
+          b.addEventListener('click', () => setDirection(b.dataset.d)),
+        );
+      $('#reset').addEventListener('click', reset);
+      setDirection(new URLSearchParams(location.search).get('d') || 'E');
+    </script>
+  </body>
+</html>
