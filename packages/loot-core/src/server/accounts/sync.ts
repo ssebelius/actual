@@ -42,7 +42,7 @@ function BankSyncError(type: string, code: string, details?: object) {
   return { type: 'BankSyncError', category: type, code, details };
 }
 
-function makeSplitTransaction(trans, subtransactions) {
+export function makeSplitTransaction(trans, subtransactions) {
   // We need to calculate the final state of split transactions
   const { subtransactions: sub, ...parent } = recalculateSplit({
     ...trans,
@@ -433,6 +433,19 @@ function normalizePayeeName(
   }
 }
 
+// Trims an imported payee name and applies the normalization. A name that
+// is only whitespace becomes null. Shared with bank file setup's planCreate.
+export function normalizeImportedPayeeName(
+  payeeName: string | null | undefined,
+  normalization: PayeeNameNormalization,
+): string | null | undefined {
+  if (!payeeName) {
+    return payeeName;
+  }
+  const trimmed = payeeName.trim();
+  return trimmed === '' ? null : normalizePayeeName(trimmed, normalization);
+}
+
 async function normalizeTransactions(
   transactions,
   acctId,
@@ -472,15 +485,10 @@ async function normalizeTransactions(
       }
     }
 
-    let payee_name = originalPayeeName;
-    if (payee_name) {
-      const trimmed = payee_name.trim();
-      if (trimmed === '') {
-        payee_name = null;
-      } else {
-        payee_name = normalizePayeeName(trimmed, payeeNameNormalization);
-      }
-    }
+    const payee_name = normalizeImportedPayeeName(
+      originalPayeeName,
+      payeeNameNormalization,
+    );
 
     trans.imported_payee = trans.imported_payee || payee_name;
     if (trans.imported_payee) {

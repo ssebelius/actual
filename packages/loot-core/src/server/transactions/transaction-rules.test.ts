@@ -1465,3 +1465,96 @@ describe('Running balance for rules', () => {
     expect(queries()).toBe(0);
   });
 });
+
+describe('runRules resolvePayeeNames', () => {
+  async function payeeNames() {
+    const rows = await db.all<{ name: string }>(
+      'SELECT name FROM payees WHERE tombstone = 0 AND name IS NOT NULL ORDER BY name',
+    );
+    return rows.map(row => row.name);
+  }
+
+  beforeEach(async () => {
+    await loadRules();
+    await db.insertAccount({ id: 'checking', name: 'Checking' });
+    await db.insertPayee({ id: 'coffee_id', name: 'Blue Bottle Coffee' });
+    // Renames to a payee that exists
+    await insertRule({
+      stage: 'pre',
+      conditionsOp: 'and',
+      conditions: [
+        { op: 'contains', field: 'imported_payee', value: 'SQ *BLUE' },
+      ],
+      actions: [
+        { op: 'set', field: 'payee_name', value: 'Blue Bottle Coffee' },
+      ],
+    });
+    // Renames to a payee that does not exist yet
+    await insertRule({
+      stage: 'pre',
+      conditionsOp: 'and',
+      conditions: [
+        { op: 'contains', field: 'imported_payee', value: 'SQ *RITUAL' },
+      ],
+      actions: [{ op: 'set', field: 'payee_name', value: 'Ritual Roasters' }],
+    });
+    // Chained on the renamed payee's id
+    await insertRule({
+      stage: null,
+      conditionsOp: 'and',
+      conditions: [{ op: 'is', field: 'payee', value: 'coffee_id' }],
+      actions: [{ op: 'set', field: 'notes', value: 'coffee' }],
+    });
+  });
+
+  function ritual() {
+    return {
+      account: 'checking',
+      date: '2026-03-05',
+      amount: -450,
+      imported_payee: 'SQ *RITUAL COFFEE',
+      payee: null,
+      category: null,
+    };
+  }
+
+  test('by default a new payee name is inserted and resolved', async () => {
+    const transaction = await runRules(ritual());
+
+    const inserted = await db.getPayeeByName('Ritual Roasters');
+    expect(inserted).not.toBeNull();
+    expect(transaction.payee).toBe(inserted.id);
+    expect('payee_name' in transaction).toBe(false);
+    expect(await payeeNames()).toEqual([
+      'Blue Bottle Coffee',
+      'Ritual Roasters',
+    ]);
+  });
+
+  test('false leaves a new payee name unresolved and writes nothing', async () => {
+    const payeesBefore = await db.all('SELECT * FROM payees');
+    const mappingsBefore = await db.all('SELECT * FROM payee_mapping');
+
+    const transaction = await runRules(ritual(), null, {
+      resolvePayeeNames: false,
+    });
+
+    expect(transaction.payee).toBe('new');
+    expect(transaction).toMatchObject({ payee_name: 'Ritual Roasters' });
+    expect(await db.all('SELECT * FROM payees')).toEqual(payeesBefore);
+    expect(await db.all('SELECT * FROM payee_mapping')).toEqual(mappingsBefore);
+  });
+
+  test('false still resolves a name to an existing payee, so chained rules run', async () => {
+    const transaction = await runRules(
+      { ...ritual(), imported_payee: 'SQ *BLUE BOTTLE 0042' },
+      null,
+      { resolvePayeeNames: false },
+    );
+
+    expect(transaction.payee).toBe('coffee_id');
+    expect(transaction.notes).toBe('coffee');
+    expect('payee_name' in transaction).toBe(false);
+    expect(await payeeNames()).toEqual(['Blue Bottle Coffee']);
+  });
+});

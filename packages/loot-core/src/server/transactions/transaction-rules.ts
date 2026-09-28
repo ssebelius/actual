@@ -321,6 +321,7 @@ export async function getAllRuleIdsFromSchedules(
 export async function runRules(
   trans,
   accounts: Map<string, db.DbAccount> | null = null,
+  { resolvePayeeNames = true }: { resolvePayeeNames?: boolean } = {},
 ) {
   await ensureFormulaPreferencesLoaded();
 
@@ -389,7 +390,7 @@ export async function runRules(
         await ensureBalanceFor(rules[i]);
         const changes = rules[i].execActions(finalTrans);
         finalTrans = Object.assign({}, finalTrans, changes);
-        await resolvePayeeNameForRules(finalTrans);
+        await resolvePayeeNameForRules(finalTrans, { resolvePayeeNames });
         lastCategoryIdForGroup = await refreshCategoryGroupIfChanged(
           finalTrans,
           lastCategoryIdForGroup,
@@ -407,7 +408,7 @@ export async function runRules(
             rules[i].execActions(finalTrans),
           );
         }
-        await resolvePayeeNameForRules(finalTrans);
+        await resolvePayeeNameForRules(finalTrans, { resolvePayeeNames });
         lastCategoryIdForGroup = await refreshCategoryGroupIfChanged(
           finalTrans,
           lastCategoryIdForGroup,
@@ -423,7 +424,7 @@ export async function runRules(
           rules[i].execActions(finalTrans),
         );
       }
-      await resolvePayeeNameForRules(finalTrans);
+      await resolvePayeeNameForRules(finalTrans, { resolvePayeeNames });
       lastCategoryIdForGroup = await refreshCategoryGroupIfChanged(
         finalTrans,
         lastCategoryIdForGroup,
@@ -431,7 +432,7 @@ export async function runRules(
     }
   }
 
-  return await finalizeTransactionForRules(finalTrans);
+  return await finalizeTransactionForRules(finalTrans, { resolvePayeeNames });
 }
 
 function conditionSpecialCases(cond: Condition | null): Condition | null {
@@ -1187,8 +1188,16 @@ export async function prepareTransactionForRules(
   return r;
 }
 
+/**
+ * A rule that sets a payee name leaves `payee: 'new'` with `payee_name`.
+ * Resolve it to an existing payee by name, or insert one. With
+ * `resolvePayeeNames` false, an existing payee is still used, but a new
+ * name is left as `payee: 'new'` with `payee_name` and nothing is written,
+ * so a caller that batches its own writes can create the payee itself.
+ */
 async function resolvePayeeNameForRules(
   trans: TransactionEntity | TransactionForRules,
+  { resolvePayeeNames = true }: { resolvePayeeNames?: boolean } = {},
 ): Promise<void> {
   if (!('payee_name' in trans) || trans.payee !== 'new') {
     return;
@@ -1196,6 +1205,9 @@ async function resolvePayeeNameForRules(
 
   if (trans.payee_name) {
     let payee_id = (await getPayeeByName(trans.payee_name))?.id;
+    if (payee_id == null && !resolvePayeeNames) {
+      return;
+    }
     payee_id ??= await insertPayee({
       name: trans.payee_name,
     });
@@ -1237,10 +1249,14 @@ async function refreshCategoryGroupIfChanged(
 
 export async function finalizeTransactionForRules(
   trans: TransactionEntity | TransactionForRules,
+  { resolvePayeeNames = true }: { resolvePayeeNames?: boolean } = {},
 ): Promise<TransactionEntity> {
   if ('payee_name' in trans) {
-    await resolvePayeeNameForRules(trans);
-    delete trans.payee_name;
+    await resolvePayeeNameForRules(trans, { resolvePayeeNames });
+    // An unresolved name stays for the caller; it is the only record of it
+    if (trans.payee !== 'new') {
+      delete trans.payee_name;
+    }
   }
 
   if ('balance' in trans) {
