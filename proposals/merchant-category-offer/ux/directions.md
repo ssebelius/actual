@@ -1,9 +1,9 @@
 # UX directions: Categorize a merchant everywhere at once
 
-Status: reviewed; awaiting the owner's pick · 2026-09-27 · implements
+Status: owner chose B on 2026-09-27 · 2026-09-27 · implements
 [the PRD](../PRD.md)
 
-Recommendation: **B, the inline strip**, with D's review panel shown only
+Decision: **B, the inline strip**, chosen by the owner after the review, with D's review panel shown only
 when the person chooses to change rows they already categorized. C is ruled
 out. A is the fallback if B's table work proves too costly.
 
