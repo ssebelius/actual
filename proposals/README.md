@@ -58,6 +58,18 @@ screen with **Import my budget**, then **Actual**:
 yarn seed --profile family --yes --end-date 2026-09-27
 ```
 
-Open an uncategorized Chick-fil-A purchase and give it a category. The offer
-appears under the row; Apply sets the merchant's other uncategorized purchase
-and saves a rule you can see on the Rules page.
+Open the Family Rewards Card account, search for Chick-fil-A, and set the
+uncategorized April 17 purchase to Dining Out. The offer appears under the
+row; Apply sets the April 4 purchase too and saves a rule you can see on the
+Rules page.
+
+## Demo videos
+
+Each recording runs the feature in the app, using the steps above:
+
+- [Bank file setup](bank-file-setup/ux/bank-file-setup-demo.webm) (73 seconds)
+- [Category offer](category-offer/ux/category-offer-demo.webm) (49 seconds)
+
+The scripts that record them are next to the videos, in `ux/record-demo.mjs`.
+Run one from the repository root with the app running, for example
+`node proposals/category-offer/ux/record-demo.mjs`.
