@@ -30,7 +30,7 @@ borders for persistent surfaces and shadows for transient ones.
 | When the person decides  | After the edit saves                           | After the edit saves                                     | While choosing the category                                    | After the edit saves              |
 | What they see first      | One sentence and a count                       | One sentence and a count                                 | A button with a count                                          | Every row that would change       |
 | Surface                  | Transient, large shadow                        | Persistent, notice fill and border, no shadow            | Transient, inside the existing dropdown                        | Transient, large shadow           |
-| Include categorized rows | Checkbox, off                                  | Checkbox, off; checking it offers a review of those rows | Not offered                                                    | Per-row checkboxes, off           |
+| Include categorized rows | Checkbox, off                                  | Checkbox, off; checking it routes Apply through a review | Not offered                                                    | Per-row checkboxes, off           |
 | Keyboard                 | Focus stays in the table; announced politely   | After an Enter save, focus moves to Apply                | Enter for this row, Shift+Enter for all (conflicts, see below) | Focus moves into the panel        |
 | Build cost               | Low: extend the notification type              | Medium: an extra row in the virtualized table            | Low to medium: the picker already takes a footer               | Medium: a new popover with a list |
 | Review verdict           | Sound fallback                                 | Recommended, with fixes applied                          | Ruled out                                                      | Too heavy as the default          |
@@ -65,15 +65,17 @@ until answered.
   was.
 - **Screen readers.** The offer sentence, and later the confirmation, are
   announced through one polite live region.
-- **Include.** Checking "Include 10 marked Dining Out" reveals "Review these
-  10", which opens D's panel anchored to the strip with those rows ticked. The
-  preview appears only in this case, because overwriting the person's own
-  choices is the risk the PRD cares about; uncategorized rows are covered by
-  Undo.
+- **Include.** Checking "Include 10 marked Dining Out" ("Include 14 with
+  other categories" when they differ) turns Apply into "Review 11 changes",
+  which opens D's panel anchored to the strip with those rows ticked; the
+  change happens from the panel. The review appears only in this case,
+  because overwriting the person's own choices is the risk the PRD cares
+  about; uncategorized rows are covered by Undo.
 - **After Apply.** The changed rows take the table highlight color
   (`tableRowBackgroundHighlight`) for a moment, as a color transition, never a
   layout animation. The strip shows the confirmation with Undo, View rule and
-  Dismiss.
+  Dismiss. Undo restores the state from before the edit, the edited row
+  included.
 - **Walking away.** Editing another row or navigating away closes the strip
   without an answer, and Actual's existing silent learning runs as usual. Only
   an explicit Just this one or Escape counts as declining.

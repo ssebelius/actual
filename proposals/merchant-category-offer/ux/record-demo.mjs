@@ -91,7 +91,7 @@ await caption(
 await click('.modal .btn');
 await click('.notice .btn');
 await caption(
-  'Undo reverts the Apply step only. Apr 17 keeps Fast food.',
+  'Undo puts everything back as it was before the edit, Apr 17 included.',
   2800,
 );
 
@@ -111,17 +111,17 @@ await caption(
 );
 await click('.strip .btn');
 await caption(
-  'Undo, then the riskier case: also changing rows already marked Dining Out.',
+  'Undo restores everything. Then the riskier case: also changing Dining Out rows.',
   2600,
 );
 await categorizeApr17();
 await click('[data-opt="Fast food"]');
 await click('#include');
 await caption(
-  'Including categorized rows reveals a review link, because it overwrites earlier choices.',
+  'Including categorized rows turns Apply into a review, because it overwrites earlier choices.',
   3200,
 );
-await click('#review');
+await click('#apply');
 await caption(
   'The review panel lists exactly which rows will change. Any can be unticked.',
   3400,

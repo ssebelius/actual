@@ -132,14 +132,17 @@ flowchart LR
    saved: "Also set 1 other uncategorized Chick-fil-A transaction to Fast
    food, and save a rule to use Fast food for Chick-fil-A from now on?" It has
    two actions, Apply and Just this one.
-5. When the payee's other categorized transactions all share one different
-   category, a secondary option shows that count: "Include 10 marked Dining
-   Out." It is off unless the person turns it on.
+5. When some of the payee's other transactions have a different category, a
+   secondary option shows that count: "Include 10 marked Dining Out", or
+   "Include 14 with other categories" when they differ. It is off unless the
+   person turns it on, and turning it on sends Apply through a review of
+   every row that would change.
 6. When a simple rule already sets the payee to a different category, the
    offer says the rule will change: "This replaces the rule that sets
    Chick-fil-A to Dining Out."
 7. Apply updates the transactions and saves the rule as one change. A
-   confirmation says what happened and offers Undo and View rule.
+   confirmation says what happened and offers Undo and View rule. Undo puts
+   everything back as it was before the edit, the edited row included.
 8. Just this one, closing the offer, or ignoring it changes nothing more.
 
 Where the offer appears is set out in [the UX directions](ux/directions.md).
@@ -196,10 +199,11 @@ Monarch help center article 360048393372 (Quick rules),
 3. The offer names the payee, the category, the number of other
    uncategorized transactions it would change, and that a rule will be saved.
    With none to change, it offers only to save the rule.
-4. When all of the payee's other categorized transactions share one category
-   different from the new one, the offer shows an unselected option with that
-   count to include them. With more than one other category, the option is not
-   shown; the rule editor's Apply actions covers that case.
+4. When any of the payee's other transactions has a category different from
+   the new one, the offer shows an unselected option with that count to
+   include them, named by the category when they share one. With the option
+   on, Apply first shows every row that would change, each of which can be
+   unticked, and changes only the ticked rows.
 5. A simple rule is exactly the shape the silent learner creates and updates:
    no stage, one condition "payee is X", one action setting the category. When
    a simple rule sets the payee to a different category, the offer states
@@ -208,9 +212,9 @@ Monarch help center article 360048393372 (Quick rules),
 6. Apply changes the counted transactions and creates or updates the simple
    rule in one undoable step.
 7. After Apply, a confirmation states the number of transactions changed and
-   links to the rule. Its Undo reverts the Apply step only: the edited row
-   keeps its new category, and the other transactions and the rule return to
-   their previous state. Undo is offered only while Apply is the most recent
+   links to the rule. Its Undo restores the state from before the edit: the
+   edited row, the other changed transactions and the rule all return to
+   their previous values. Undo is offered only while Apply is the most recent
    change.
 8. Declining, closing, or ignoring the offer leaves everything but the edited
    row unchanged.

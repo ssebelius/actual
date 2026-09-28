@@ -534,7 +534,10 @@
           ...(o.include ? o.includable : []),
         ];
         lastApply = {
-          before: targets.map(r => [r.id, r.category]),
+          before: [
+            editedBefore,
+            ...targets.map(r => [r.id, r.category]),
+          ].filter(Boolean),
           count: targets.length,
           payee: o.payee,
           category: o.category,
@@ -561,7 +564,7 @@
         stripConfirm = null;
         $('#overlay').innerHTML = '';
         render();
-        const text = 'Undone. Only the row you edited keeps its new category.';
+        const text = 'Undone. Everything is back as it was before the edit.';
         if (direction === 'B') announce(text);
         else notify(`<div>${text}</div>`);
       }
@@ -635,8 +638,8 @@
       function stripHtml(o) {
         return `<div class="strip" role="region" aria-label="Category offer">
           <div class="text">${offerSentence(o)}
-          ${o.includeCategory ? `<div style="display:flex;gap:12px;align-items:center;margin-top:6px"><label class="check"><input type="checkbox" id="include" ${o.include ? 'checked' : ''} onchange="offer.include=this.checked;render();document.getElementById('include').focus()"> Include ${o.includable.length} marked ${o.includeCategory}</label>${o.include ? `<span class="link" id="review" onclick="reviewIncluded()">Review these ${o.includable.length}</span>` : ''}</div>` : ''}</div>
-          <div class="actions"><button class="btn primary" id="apply" onclick="stripRow=offer.row.id;apply(offer)">Apply</button><button class="btn bare" onclick="decline()">Just this one</button></div></div>`;
+          ${o.includeCategory ? `<div style="display:flex;gap:12px;align-items:center;margin-top:6px"><label class="check"><input type="checkbox" id="include" ${o.include ? 'checked' : ''} onchange="offer.include=this.checked;render();document.getElementById('include').focus()"> Include ${o.includable.length} marked ${o.includeCategory}</label></div>` : ''}</div>
+          <div class="actions">${o.include ? `<button class="btn primary" id="apply" onclick="reviewIncluded()">Review ${o.uncategorized.length + o.includable.length} changes</button>` : `<button class="btn primary" id="apply" onclick="stripRow=offer.row.id;apply(offer)">Apply</button>`}<button class="btn bare" onclick="decline()">Just this one</button></div></div>`;
       }
 
       function place(el, box, { alignRight = false } = {}) {
@@ -707,13 +710,16 @@
         foot.innerHTML = `<button class="btn" id="apply-all">${n ? `Also set ${n} uncategorized ${o.payee} and save a rule` : `Save a rule for ${o.payee}`}</button>
           <div class="hint">Enter sets this row only · Shift+Enter applies to all and remembers</div>`;
         $('#apply-all').onclick = () => {
+          editedBefore = [id, rows[id].category];
           rows[id].category = category;
           closePicker();
           apply(o);
         };
       }
 
+      let editedBefore = null;
       function choose(id, category) {
+        editedBefore = [id, rows[id].category];
         rows[id].category = category;
         closePicker();
         stripConfirm = null;

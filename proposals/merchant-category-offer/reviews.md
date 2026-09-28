@@ -12,9 +12,11 @@ is not yet an owner decision.
 
 ## Decisions to confirm
 
-On 2026-09-27 the owner confirmed decision 1 and chose UX direction B.
-Decisions 2 to 4 remain open and are raised again in the implementation
-plan.
+Owner decisions on 2026-09-27: decision 1 confirmed; decision 2 confirmed;
+decision 3 changed, so Undo restores the state from before the edit,
+including the edited row; decision 4 changed, so "include" is always offered
+when other categories exist and always goes through a row review. UX
+direction B chosen.
 
 | #   | Proposal                                                                                                                                                                      | Source                 | Why it was adopted                                                                                                                                                                                                                                                     |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
