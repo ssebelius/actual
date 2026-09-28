@@ -12,6 +12,10 @@ is not yet an owner decision.
 
 ## Decisions to confirm
 
+On 2026-09-27 the owner confirmed decision 1 and chose UX direction B.
+Decisions 2 to 4 remain open and are raised again in the implementation
+plan.
+
 | #   | Proposal                                                                                                                                                                      | Source                 | Why it was adopted                                                                                                                                                                                                                                                     |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | When an offer is shown, the silent learner waits for the answer: Apply saves the rule, an explicit decline learns nothing, and no answer lets the learner run (Requirement 2) | Product, revised by UX | The product review proposed skipping the learner whenever an offer shows, so that declining really declines. The UX review found that in the transaction table Enter saves and moves on, so most offers would close unanswered and people would learn less than today. |
